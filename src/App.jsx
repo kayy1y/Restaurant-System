@@ -100,33 +100,23 @@ export default function App() {
               onSwitchWorker={handleSwitchWorker}
             />
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setActiveTab('admin')}
-                className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
-              >
-                <span>🔌 Probador Supabase DB</span>
-              </button>
-
-              <button
-                onClick={() => setShowIncidentModal(true)}
-                className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
-              >
-                <span>⚠️ Reportar Incidencia</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setShowIncidentModal(true)}
+              className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
+            >
+              <span>⚠️ Reportar Incidencia</span>
+            </button>
           </div>
 
           {/* Renderizado Dinámico e Instantáneo de Vistas según la Sesión Activa */}
-          {activeTab === 'admin' && <AdminView />}
-          {activeTab !== 'admin' && roleUpper === 'SALONERO' && <SaloneroView activeSessionUser={activeSession.user} />}
-          {activeTab !== 'admin' && roleUpper === 'COCINA' && <CocinaView />}
-          {activeTab !== 'admin' && roleUpper === 'CAJERO' && (
+          {roleUpper === 'SALONERO' && <SaloneroView activeSessionUser={activeSession.user} />}
+          {roleUpper === 'COCINA' && <CocinaView />}
+          {roleUpper === 'CAJERO' && (
             activeTab === 'facturas' ? <InvoiceManager currentRole={currentRole} invoices={[]} /> : <CajeroView />
           )}
 
           {/* Renderizado para Administrador y Navegación General */}
-          {activeTab !== 'admin' && (roleUpper === 'ADMINISTRADOR' || roleUpper === 'GERENTE' || roleUpper === 'BARRA' || roleUpper === 'INVENTARIO') && (
+          {(roleUpper === 'ADMINISTRADOR' || roleUpper === 'GERENTE' || roleUpper === 'BARRA' || roleUpper === 'INVENTARIO') && (
             <>
               {activeTab === 'mesas' && <SaloneroView activeSessionUser={activeSession.user} />}
               {activeTab === 'cocina' && <CocinaView />}
@@ -137,6 +127,7 @@ export default function App() {
               {activeTab === 'ia' && <GastroAIAssistant orders={[]} rawIngredients={[]} currentRole={currentRole} />}
               {activeTab === 'reportes' && <ReportsDashboard />}
               {activeTab === 'auditoria' && <AuditLogViewer auditLogs={[]} />}
+              {activeTab === 'admin' && <AdminView />}
             </>
           )}
         </main>

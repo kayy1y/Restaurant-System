@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   LayoutGrid, ChefHat, Package, CreditCard, FileText, 
-  RotateCcw, Sparkles, BarChart3, ShieldAlert, Radio 
+  RotateCcw, Sparkles, BarChart3, ShieldAlert 
 } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, currentRole }) {
@@ -11,7 +11,6 @@ export default function Sidebar({ activeTab, setActiveTab, currentRole }) {
     { id: 'caja', label: 'Caja & Cobros', icon: CreditCard, roles: ['ADMINISTRADOR', 'gerente', 'CAJERO'] },
     { id: 'inventario', label: 'Recetas & Stock', icon: Package, roles: ['ADMINISTRADOR', 'gerente', 'inventario', 'COCINA'] },
     { id: 'facturas', label: 'Facturación v4.3', icon: FileText, roles: ['ADMINISTRADOR', 'gerente', 'CAJERO'] },
-    { id: 'admin', label: '🔌 Pruebas & Supabase', icon: Radio, roles: ['ADMINISTRADOR', 'gerente', 'SALONERO', 'COCINA', 'CAJERO'], badge: 'DB' },
     { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw, roles: ['ADMINISTRADOR', 'gerente', 'CAJERO'] },
     { id: 'ia', label: 'GastroAI Engine', icon: Sparkles, roles: ['ADMINISTRADOR', 'gerente', 'SALONERO', 'COCINA', 'inventario', 'CAJERO'], badge: 'AI' },
     { id: 'reportes', label: 'Reportes & Ventas', icon: BarChart3, roles: ['ADMINISTRADOR', 'gerente'] },
