@@ -1,8 +1,9 @@
 import React from 'react';
-import { Lock, UserCheck, ChefHat, CreditCard, ShieldCheck, User, Radio, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Lock, UserCheck, ChefHat, CreditCard, ShieldCheck, User, Radio, CheckCircle2, AlertTriangle, Save, Key } from 'lucide-react';
 import { authenticateByPin, getAllUsers } from '../services/authService';
 import { INITIAL_USERS } from '../services/db';
 import { testSupabaseConnection } from '../services/supabaseDiagnostic';
+import { saveDynamicSupabaseCredentials, currentSupabaseUrl, isSupabaseConfigured } from '../lib/supabase';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [users, setUsers] = React.useState(INITIAL_USERS);
@@ -14,6 +15,8 @@ export default function LoginScreen({ onLoginSuccess }) {
   // Estado del Probador de Supabase
   const [supabaseStatus, setSupabaseStatus] = React.useState(null);
   const [testingSupabase, setTestingSupabase] = React.useState(false);
+  const [showConfigInput, setShowConfigInput] = React.useState(!isSupabaseConfigured);
+  const [customUrlInput, setCustomUrlInput] = React.useState(currentSupabaseUrl || '');
 
   React.useEffect(() => {
     getAllUsers().then(data => {
@@ -29,6 +32,15 @@ export default function LoginScreen({ onLoginSuccess }) {
     const res = await testSupabaseConnection();
     setSupabaseStatus(res);
     setTestingSupabase(false);
+  };
+
+  const handleSaveCredentials = (e) => {
+    e.preventDefault();
+    if (!customUrlInput || !customUrlInput.startsWith('http')) {
+      alert('Por favor ingresa una URL válida de Supabase (ej: https://xyz.supabase.co)');
+      return;
+    }
+    saveDynamicSupabaseCredentials(customUrlInput);
   };
 
   const handleKeypadPress = (digit) => {
@@ -75,30 +87,56 @@ export default function LoginScreen({ onLoginSuccess }) {
   return (
     <div className="min-h-screen bg-[#070a12] flex flex-col items-center justify-center p-4 selection:bg-amber-500 selection:text-slate-950">
       
-      {/* TARJETA DESTACADA SUPERIOR: PROBADOR DIRECTO DE SUPABASE DB */}
-      <div className="w-full max-w-md mb-3">
-        <button
-          type="button"
-          onClick={handleTestSupabaseClick}
-          disabled={testingSupabase}
-          className="w-full bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 text-amber-300 border border-amber-500/50 p-3 rounded-2xl flex items-center justify-between gap-2 shadow-lg transition-all"
-        >
-          <div className="flex items-center gap-2 font-bold text-xs">
-            <Radio className="w-4 h-4 text-amber-400 animate-pulse" />
-            <span>{testingSupabase ? 'Probando conexión con Supabase...' : '🔌 PROBAR CONEXIÓN SUPABASE DB'}</span>
-          </div>
-          <span className="bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-1 rounded-xl">Probar Ahora</span>
-        </button>
-
-        {supabaseStatus && (
-          <div className={`mt-2 p-3.5 rounded-2xl border text-xs ${supabaseStatus.dbPingSuccess ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200' : 'bg-amber-500/15 border-amber-500/50 text-amber-200'}`}>
-            <div className="flex items-center gap-2 font-bold">
-              {supabaseStatus.dbPingSuccess ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 text-amber-400" />}
-              <span>{supabaseStatus.dbPingSuccess ? '¡Supabase DB Conectado Correctamente!' : 'Información Conexión Supabase:'}</span>
+      {/* WIDGET DESTACADO: CONEXIÓN SUPABASE DB DINÁMICA */}
+      <div className="w-full max-w-md mb-3 space-y-2">
+        <div className="bg-slate-900/95 border border-slate-800 p-3 rounded-2xl space-y-2 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-bold text-xs text-amber-400">
+              <Radio className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span>Conexión Supabase DB en la Nube</span>
             </div>
-            <p className="text-[11px] font-mono mt-1">{supabaseStatus.dbPingMessage}</p>
+            <button
+              type="button"
+              onClick={handleTestSupabaseClick}
+              disabled={testingSupabase}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] px-2.5 py-1 rounded-xl transition-all"
+            >
+              {testingSupabase ? 'Probando...' : '🔌 Probar Conexión'}
+            </button>
           </div>
-        )}
+
+          {/* Formulario rápido para pegar la URL si Vercel usó otro nombre */}
+          <form onSubmit={handleSaveCredentials} className="pt-2 border-t border-slate-800 space-y-2 text-xs">
+            <label className="text-[10px] text-slate-400 font-semibold block">
+              URL del Proyecto Supabase:
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="https://xyz.supabase.co"
+                value={customUrlInput}
+                onChange={(e) => setCustomUrlInput(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-amber-300 font-mono"
+              />
+              <button
+                type="submit"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 shrink-0"
+              >
+                <Save className="w-3.5 h-3.5" /> Conectar
+              </button>
+            </div>
+          </form>
+
+          {supabaseStatus && (
+            <div className={`p-3 rounded-xl border text-xs ${supabaseStatus.dbPingSuccess ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200' : 'bg-amber-500/15 border-amber-500/50 text-amber-200'}`}>
+              <div className="flex items-center gap-2 font-bold">
+                {supabaseStatus.dbPingSuccess ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 text-amber-400" />}
+                <span>{supabaseStatus.dbPingSuccess ? '¡Supabase DB Conectado!' : 'Estado Conexión:'}</span>
+              </div>
+              <p className="text-[11px] font-mono mt-1">{supabaseStatus.dbPingMessage}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="glass-panel border border-slate-700/80 w-full max-w-md rounded-3xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-250">
