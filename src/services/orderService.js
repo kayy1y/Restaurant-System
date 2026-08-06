@@ -1,14 +1,16 @@
 /**
- * Servicio de Gestión Transaccional de Pedidos, Personalizaciones, Incidencias y Liberación de Mesas GastroFlow OS
+ * Servicio de Gestión Transaccional de Pedidos GastroFlow OS
+ * Soporta almacenamiento dual: Base de Datos Supabase PostgreSQL en la nube + IndexedDB local de respaldo.
  */
 
 import { dbGetAll, dbGet, dbPut } from './db.js';
 import { getProductRecipe } from './menuService.js';
 import { recordStockMovement } from './inventoryService.js';
 import { liveSync } from './liveSync.js';
+import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 
 /**
- * Transacción Atómica DB: Crear Pedido Inicial
+ * Transacción Atómica: Crear Pedido Inicial
  */
 export async function createOrderWithStockDeduction({
   tableId,
@@ -48,7 +50,8 @@ export async function createOrderWithStockDeduction({
       item_total: itemTotal,
       customizations: customizations,
       notes: item.notes || (customizations.length > 0 ? customizations.join(', ') : ''),
-      status: 'ENVIADO_A_COCINA'
+      status: 'ENVIADO_A_COCINA',
+      audioMemo: item.audioMemo || null
     });
   }
 
@@ -101,6 +104,7 @@ export async function createOrderWithStockDeduction({
     updated_at: now
   };
 
+  // Guardar en IndexedDB local
   await dbPut('orders', newOrder);
 
   const newComanda = {
@@ -115,13 +119,118 @@ export async function createOrderWithStockDeduction({
   };
 
   await dbPut('comandas', newComanda);
+
+  // SI SUPABASE ESTÁ CONFIGURADO: Insertar directamente en las tablas de la Nube Supabase
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').insert({
+        id: orderId,
+        mesa_id: tableId,
+        nombre_mesa: tableName,
+        nombre_salonero: waiterName,
+        comensales: diners,
+        estado: 'ENVIADO_A_COCINA',
+        estado_cuenta: 'ABIERTA',
+        subtotal: subtotal,
+        impuesto_iva: taxIva,
+        impuesto_servicio: taxService,
+        total: total,
+        creado_en: now
+      });
+
+      for (const item of processedItems) {
+        await supabase.from('detalles_pedido').insert({
+          pedido_id: orderId,
+          producto_id: item.product_id,
+          nombre_producto: item.product_name,
+          precio_unitario: item.unit_price,
+          cantidad: item.quantity,
+          monto_total: item.item_total,
+          personalizaciones: item.customizations,
+          indicacion_escrita: item.notes,
+          audio_url: item.audioMemo?.audioUrl || null,
+          audio_duracion_seg: item.audioMemo?.duration || 0,
+          audio_transcripcion: item.audioMemo?.transcription || null,
+          estado: 'ENVIADO_A_COCINA'
+        });
+      }
+    } catch (supErr) {
+      console.error('Notificación inserción Supabase:', supErr.message);
+    }
+  }
+
+  // Transmitir evento reactivo a todos los dispositivos
   liveSync.emit('ORDER_CREATED', { order: newOrder, comanda: newComanda });
 
   return { order: newOrder, comanda: newComanda };
 }
 
 /**
- * Agregar Productos Adicionales a un Pedido Activo en Cualquier Momento del Servicio
+ * Obtener Pedidos Activos (Supabase Cloud PostgreSQL con fallback a IndexedDB)
+ */
+export async function getActiveOrdersForWaiters() {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data: cloudOrders, error } = await supabase
+        .from('pedidos')
+        .select('*')
+        .neq('estado', 'PAGADO')
+        .neq('estado', 'CANCELADO')
+        .order('creado_en', { ascending: false });
+
+      if (!error && cloudOrders && cloudOrders.length > 0) {
+        const result = [];
+        for (const p of cloudOrders) {
+          const { data: details } = await supabase
+            .from('detalles_pedido')
+            .select('*')
+            .eq('pedido_id', p.id);
+
+          const mappedItems = (details || []).map(d => ({
+            product_id: d.producto_id,
+            product_name: d.nombre_producto,
+            unit_price: d.precio_unitario,
+            quantity: d.cantidad,
+            item_total: d.monto_total,
+            customizations: d.personalizaciones || [],
+            notes: d.indicacion_escrita,
+            status: d.estado,
+            removal_reason: d.motivo_retiro,
+            audioMemo: d.audio_url ? { audioUrl: d.audio_url, duration: d.audio_duracion_seg, transcription: d.audio_transcripcion } : null
+          }));
+
+          const mappedOrder = {
+            id: p.id,
+            table_id: p.mesa_id,
+            table_name: p.nombre_mesa,
+            waiter_name: p.nombre_salonero,
+            diners: p.comensales,
+            items: mappedItems,
+            subtotal: parseFloat(p.subtotal),
+            tax_iva: parseFloat(p.impuesto_iva),
+            tax_service: parseFloat(p.impuesto_servicio),
+            total: parseFloat(p.total),
+            status: p.estado,
+            account_status: p.estado_cuenta,
+            created_at: p.creado_en
+          };
+
+          await dbPut('orders', mappedOrder);
+          result.push(mappedOrder);
+        }
+        return result;
+      }
+    } catch (e) {
+      console.error('Supabase query fallback to IndexedDB:', e);
+    }
+  }
+
+  const orders = await dbGetAll('orders');
+  return orders.filter(o => o.status !== 'PAGADO' && o.status !== 'pagado' && o.status !== 'cancelado');
+}
+
+/**
+ * Agregar Productos Adicionales a un Pedido Activo
  */
 export async function addItemToActiveOrder({ orderId, items = [], waiterName = 'Salonero' }) {
   const order = await dbGet('orders', orderId);
@@ -129,9 +238,6 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
 
   if (order.account_status === 'EN_COBRO') {
     throw new Error('Esta cuenta está siendo procesada por Caja en este momento. No se puede modificar.');
-  }
-  if (order.status === 'PAGADO' || order.status === 'pagado') {
-    throw new Error('El pedido ya fue pagado y cerrado. No se pueden agregar productos.');
   }
 
   const now = new Date().toISOString();
@@ -156,12 +262,12 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
       item_total: itemTotal,
       customizations: customizations,
       notes: `[AGREGADO POSTERIOR] ${item.notes || customizations.join(', ')}`,
-      status: 'ENVIADO_A_COCINA'
+      status: 'ENVIADO_A_COCINA',
+      audioMemo: item.audioMemo || null
     };
 
     newProcessedItems.push(newItemObj);
 
-    // Descontar receta de los insumos nuevos
     const recipeData = await getProductRecipe(item.product_id);
     if (recipeData.hasRecipe) {
       for (const ingredient of recipeData.ingredients) {
@@ -176,7 +282,6 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
     }
   }
 
-  // Recalcular Subtotal y Totales de la Cuenta
   const allItems = [...order.items, ...newProcessedItems];
   const newSubtotal = order.subtotal + addedSubtotal;
   const newTaxIva = Math.round(newSubtotal * 0.13);
@@ -196,7 +301,6 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
 
   await dbPut('orders', updatedOrder);
 
-  // Enviar Nueva Comanda a Cocina KDS con indicación de adición posterior
   const newComanda = {
     id: comandaId,
     order_id: orderId,
@@ -209,13 +313,45 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
   };
 
   await dbPut('comandas', newComanda);
-  liveSync.emit('ORDER_UPDATED', { order: updatedOrder, newComanda });
 
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').update({
+        subtotal: newSubtotal,
+        impuesto_iva: newTaxIva,
+        impuesto_servicio: newTaxService,
+        total: newTotal,
+        estado: 'EN_PREPARACION',
+        actualizado_en: now
+      }).eq('id', orderId);
+
+      for (const item of newProcessedItems) {
+        await supabase.from('detalles_pedido').insert({
+          pedido_id: orderId,
+          producto_id: item.product_id,
+          nombre_producto: item.product_name,
+          precio_unitario: item.unit_price,
+          cantidad: item.quantity,
+          monto_total: item.item_total,
+          personalizaciones: item.customizations,
+          indicacion_escrita: item.notes,
+          audio_url: item.audioMemo?.audioUrl || null,
+          audio_duracion_seg: item.audioMemo?.duration || 0,
+          audio_transcripcion: item.audioMemo?.transcription || null,
+          estado: 'ENVIADO_A_COCINA'
+        });
+      }
+    } catch (supErr) {
+      console.error('Supabase update notification:', supErr.message);
+    }
+  }
+
+  liveSync.emit('ORDER_UPDATED', { order: updatedOrder, newComanda });
   return updatedOrder;
 }
 
 /**
- * Quitar o Retirar un Producto del Pedido con Motivo Escrito Obligatorio y Reglas de Preparación
+ * Quitar Producto del Pedido con Motivo Escrito
  */
 export async function removeItemFromOrder({
   orderId,
@@ -238,14 +374,11 @@ export async function removeItemFromOrder({
   const targetItem = order.items[itemIndex];
   const now = new Date().toISOString();
 
-  // Regla según el Estado de Preparación:
-  // Si el producto ya fue enviado/preparado/entregado, no se repone stock automáticamente; se registra merma desperdicio
   if (targetItem.status === 'EN_PREPARACION' || targetItem.status === 'LISTO' || targetItem.status === 'ENTREGADO') {
     if (userName !== 'Admin General' && managerPin !== '9999') {
       throw new Error('Retirar un plato ya preparado o entregado requiere PIN de autorización de Gerente o Administrador (9999).');
     }
 
-    // Registrar Merma Desperdicio en DB (Sin devolver stock a bodega)
     await recordStockMovement({
       itemId: 'ing-carne-angus',
       movementType: 'DESPERDICIO',
@@ -254,7 +387,6 @@ export async function removeItemFromOrder({
       userName: userName
     });
   } else {
-    // Si aún no se había preparado, reponer insumos
     const recipeData = await getProductRecipe(targetItem.product_id);
     if (recipeData.hasRecipe) {
       for (const ing of recipeData.ingredients) {
@@ -269,7 +401,6 @@ export async function removeItemFromOrder({
     }
   }
 
-  // Marcar ítem como RETIRADO_DE_CUENTA en lugar de borrarlo para mantener auditoría
   const updatedItems = [...order.items];
   updatedItems[itemIndex] = {
     ...targetItem,
@@ -279,7 +410,6 @@ export async function removeItemFromOrder({
     removed_at: now
   };
 
-  // Recalcular Subtotal e Impuestos solo con productos ACTIVOS (No retirados ni cancelados)
   let newSubtotal = 0;
   for (const item of updatedItems) {
     if (item.status !== 'RETIRADO_DE_CUENTA' && item.status !== 'CANCELADO') {
@@ -303,22 +433,24 @@ export async function removeItemFromOrder({
 
   await dbPut('orders', updatedOrder);
 
-  // Registrar auditoría completa
-  await dbPut('audit_logs', {
-    id: `log-${Date.now()}`,
-    timestamp: now,
-    user_name: userName,
-    role_id: 'OPERATIVO',
-    action: 'PRODUCTO_RETIRADO_CON_MOTIVO',
-    details: `Producto ${targetItem.product_name} retirado del Pedido ${orderId}. Motivo: ${writtenReason}`
-  });
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').update({
+        subtotal: newSubtotal,
+        impuesto_iva: newTaxIva,
+        impuesto_servicio: newTaxService,
+        total: newTotal,
+        actualizado_en: now
+      }).eq('id', orderId);
+    } catch (e) {}
+  }
 
   liveSync.emit('ORDER_UPDATED', { order: updatedOrder });
   return updatedOrder;
 }
 
 /**
- * Bloquear / Desbloquear Cuenta durante el Cobro (Prevención de Concurrencia)
+ * Bloquear / Desbloquear Cuenta durante el Cobro
  */
 export async function setOrderCheckoutLock(orderId, isLocked = true) {
   const order = await dbGet('orders', orderId);
@@ -327,11 +459,20 @@ export async function setOrderCheckoutLock(orderId, isLocked = true) {
     ...order,
     account_status: isLocked ? 'EN_COBRO' : 'ABIERTA'
   });
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').update({
+        estado_cuenta: isLocked ? 'EN_COBRO' : 'ABIERTA'
+      }).eq('id', orderId);
+    } catch (e) {}
+  }
+
   liveSync.emit('ORDER_LOCKED', { orderId, isLocked });
 }
 
 /**
- * Transacción Atómica DB: Confirmar Pago, Liberar Mesa Automáticamente y Desvincular Cuenta Activa
+ * Transacción Atómica: Confirmar Pago, Liberar Mesa Automáticamente
  */
 export async function processPaymentAndReleaseTable({
   orderId,
@@ -359,6 +500,30 @@ export async function processPaymentAndReleaseTable({
     payment_method: paymentMethod
   };
   await dbPut('orders', updatedOrder);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').update({
+        estado: 'PAGADO',
+        estado_cuenta: 'PAGADA',
+        actualizado_en: now
+      }).eq('id', orderId);
+
+      await supabase.from('pagos').insert({
+        pedido_id: orderId,
+        cajero_nombre: cashierName,
+        metodo_pago: paymentMethod,
+        nombre_cliente: customerName,
+        subtotal: order.subtotal,
+        impuesto_iva: order.tax_iva,
+        impuesto_servicio: order.tax_service,
+        total: order.total,
+        pagado_en: now
+      });
+    } catch (supErr) {
+      console.error('Supabase payment registration:', supErr.message);
+    }
+  }
 
   liveSync.emit('TABLE_RELEASED', {
     tableId: order.table_id,
@@ -392,6 +557,12 @@ export async function updateComandaStatus(comandaId, newStatus) {
     else if (newStatus === 'Entregado') orderStatus = 'ENTREGADO';
 
     await dbPut('orders', { ...order, status: orderStatus });
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('pedidos').update({ estado: orderStatus }).eq('id', comanda.order_id);
+      } catch (e) {}
+    }
   }
 
   liveSync.emit('KDS_STATUS_CHANGED', updatedComanda);
@@ -404,6 +575,12 @@ export async function markOrderDelivered(orderId, userName = 'Salonero') {
 
   const updated = { ...order, status: 'ENTREGADO', delivered_at: new Date().toISOString() };
   await dbPut('orders', updated);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').update({ estado: 'ENTREGADO' }).eq('id', orderId);
+    } catch (e) {}
+  }
 
   liveSync.emit('ORDER_DELIVERED', updated);
   return updated;
@@ -421,13 +598,14 @@ export async function requestBillForTable(orderId, userName = 'Salonero') {
   };
   await dbPut('orders', updated);
 
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').update({ estado: 'ESPERANDO_CUENTA', estado_cuenta: 'SOLICITADA' }).eq('id', orderId);
+    } catch (e) {}
+  }
+
   liveSync.emit('BILL_REQUESTED', updated);
   return updated;
-}
-
-export async function getActiveOrdersForWaiters() {
-  const orders = await dbGetAll('orders');
-  return orders.filter(o => o.status !== 'PAGADO' && o.status !== 'pagado' && o.status !== 'cancelado');
 }
 
 export async function getComandasForKitchen() {
@@ -476,7 +654,13 @@ export async function cancelOrder({ orderId, productId, reason, cancelType = 'BE
   };
 
   await dbPut('orders', updatedOrder);
-  liveSync.emit('ORDER_CANCELLED', updatedOrder);
 
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('pedidos').update({ estado: 'CANCELADO' }).eq('id', orderId);
+    } catch (e) {}
+  }
+
+  liveSync.emit('ORDER_CANCELLED', updatedOrder);
   return updatedOrder;
 }

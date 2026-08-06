@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   ShieldCheck, Utensils, Package, Users, Play, CheckCircle2, 
-  AlertTriangle, Lock, Edit3, Plus, Save, Sparkles, FileText, FolderPlus 
+  AlertTriangle, Lock, Edit3, Plus, Save, Sparkles, FileText, FolderPlus, Radio 
 } from 'lucide-react';
 
 import { getMenuProducts, saveMenuProduct, getProductRecipe, saveProductRecipe, createAdminMenuProduct, getMenuCategories } from '../../services/menuService.js';
@@ -9,14 +9,14 @@ import { getInventoryItems, getUnitsOfMeasure } from '../../services/inventorySe
 import { getAllUsers, saveUser } from '../../services/authService.js';
 import { runAutomatedSystemTests } from '../../services/testRunner.js';
 import { runWorkerSwitchTestRunner } from '../../services/workerSwitchTestRunner.js';
+import { testSupabaseConnection } from '../../services/supabaseDiagnostic.js';
 
 export default function AdminView() {
-  const [activeTab, setActiveTab] = React.useState('menu'); // menu, crear_producto, recetas, usuarios, pruebas
+  const [activeTab, setActiveTab] = React.useState('menu');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = React.useState(false);
   const [adminPinInput, setAdminPinInput] = React.useState('');
   const [pinError, setPinError] = React.useState('');
 
-  // Datos
   const [categories, setCategories] = React.useState([]);
   const [products, setProducts] = React.useState([]);
   const [inventoryItems, setInventoryItems] = React.useState([]);
@@ -24,8 +24,8 @@ export default function AdminView() {
   const [users, setUsers] = React.useState([]);
   const [testResults, setTestResults] = React.useState([]);
   const [runningTests, setRunningTests] = React.useState(false);
+  const [supabaseDiag, setSupabaseDiag] = React.useState(null);
 
-  // Formulario de Nuevo Producto (Wizard de Creación Admin)
   const [newProdForm, setNewProdForm] = React.useState({
     name: '',
     sku_code: '',
@@ -45,21 +45,15 @@ export default function AdminView() {
   const [prodFormError, setProdFormError] = React.useState('');
   const [prodFormSuccess, setProdFormSuccess] = React.useState('');
 
-  // Edición del Menú La Vid 2025
   const [editingProduct, setEditingProduct] = React.useState(null);
-
-  // Configurador de Receta
   const [recipeProduct, setRecipeProduct] = React.useState(null);
   const [recipeIngredients, setRecipeIngredients] = React.useState([]);
-
-  // Usuario Form
-  const [userForm, setUserForm] = React.useState(null);
 
   const loadAdminData = React.useCallback(async () => {
     try {
       const [cData, pData, iData, uData, usrData] = await Promise.all([
         getMenuCategories(),
-        getMenuProducts(true), // Incluye borradores para Admin
+        getMenuProducts(true),
         getInventoryItems(),
         getUnitsOfMeasure(),
         getAllUsers()
@@ -91,7 +85,6 @@ export default function AdminView() {
     }
   };
 
-  // Crear Nuevo Producto desde Formulario Completo Admin
   const handleCreateProductSubmit = async (e, publishStatus = 'ACTIVO') => {
     if (e) e.preventDefault();
     setProdFormError('');
@@ -126,7 +119,6 @@ export default function AdminView() {
     }
   };
 
-  // Guardar Cambios en Platillo Existente
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     if (!editingProduct) return;
@@ -178,6 +170,8 @@ export default function AdminView() {
     const r1 = await runAutomatedSystemTests();
     const r2 = await runWorkerSwitchTestRunner();
     setTestResults([...r1, ...r2]);
+    const diag = await testSupabaseConnection();
+    setSupabaseDiag(diag);
     setRunningTests(false);
   };
 
@@ -294,7 +288,7 @@ export default function AdminView() {
         </div>
       )}
 
-      {/* Pestaña NUEVA: Creación Completa de Producto desde Administración */}
+      {/* Pestaña Creación Completa de Producto */}
       {activeTab === 'crear_producto' && (
         <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-5 max-w-3xl mx-auto">
           <div className="border-b border-slate-800 pb-3">
@@ -540,13 +534,13 @@ export default function AdminView() {
         </div>
       )}
 
-      {/* Pestaña 5: Pruebas */}
+      {/* Pestaña 5: Pruebas Sistema & Diagnóstico Supabase */}
       {activeTab === 'pruebas' && (
         <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
             <div>
-              <h3 className="font-bold text-sm text-slate-200">Verificador de Integridad y Pruebas Transaccionales DB</h3>
-              <p className="text-xs text-slate-400">Ejecuta las pruebas unitarias y de integración del sistema</p>
+              <h3 className="font-bold text-sm text-slate-200">Verificador de Integridad y Diagnóstico Supabase DB</h3>
+              <p className="text-xs text-slate-400">Ejecuta las pruebas de conexión en tiempo real y transacciones</p>
             </div>
             <button
               onClick={handleRunTests}
@@ -554,9 +548,21 @@ export default function AdminView() {
               className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2"
             >
               <Play className="w-4 h-4" />
-              <span>{runningTests ? 'Ejecutando Pruebas DB...' : 'Ejecutar Pruebas Sistema'}</span>
+              <span>{runningTests ? 'Ejecutando Diagnóstico...' : 'Ejecutar Pruebas & Diagnóstico'}</span>
             </button>
           </div>
+
+          {/* Insignia de Diagnóstico Supabase */}
+          {supabaseDiag && (
+            <div className={`p-4 rounded-2xl border ${supabaseDiag.dbPingSuccess ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200' : 'bg-amber-500/10 border-amber-500/40 text-amber-200'}`}>
+              <div className="flex items-center gap-2 font-bold text-xs">
+                <Radio className={`w-4 h-4 ${supabaseDiag.dbPingSuccess ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}`} />
+                <span>Estado Conexión Supabase PostgreSQL ({supabaseDiag.timestamp}):</span>
+              </div>
+              <p className="text-xs mt-1 font-mono">{supabaseDiag.dbPingMessage}</p>
+              <p className="text-[10px] text-slate-400 mt-1 font-mono">URL Configurada: {supabaseDiag.url}</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             {testResults.map((t, idx) => (

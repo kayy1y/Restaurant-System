@@ -1,9 +1,10 @@
 /**
- * Motor de Sincronización en la Nube Multidispositivo GastroFlow OS (Socket.io Cloud Relay)
- * Conecta Tablets, Computadoras de Caja y Pantallas de Cocina a través del servidor dedicado gratuito en Render.com.
+ * Motor de Sincronización en la Nube Multidispositivo GastroFlow OS (Supabase Realtime + WebSockets + BroadcastChannel)
+ * Transmite automáticamente en vivo entre Tablets, Computadoras de Caja y Pantallas de Cocina.
  */
 
 import { dbPut, dbGet } from './db.js';
+import { supabase } from '../lib/supabase.js';
 
 // URL del Servidor Socket.io en la Nube (Render.com)
 const SOCKET_SERVER_URL = 'https://gastroflow-socket-server.onrender.com';
@@ -25,18 +26,20 @@ class LiveSyncEngine {
 
     // 2. Conectar al Servidor WebSocket / Socket.io Cloud
     this._initSocketConnection();
+
+    // 3. Conectar a Supabase Realtime Channel (Eventos en tiempo real desde Supabase)
+    this._initSupabaseRealtime();
   }
 
   _initSocketConnection() {
     if (typeof window === 'undefined') return;
 
     try {
-      // Conexión limpia por WebSocket WSS a Render / Servidor Socket.io
       const socketUrl = SOCKET_SERVER_URL.replace('http', 'ws');
       this.ws = new WebSocket(socketUrl);
 
       this.ws.onopen = () => {
-        console.log('⚡ Conectado exitosamente al servidor Socket.io Cloud en Render');
+        console.log('⚡ Conectado a Socket.io Cloud');
       };
 
       this.ws.onmessage = async (e) => {
@@ -53,6 +56,38 @@ class LiveSyncEngine {
       };
     } catch (err) {
       console.error('Error conectando a Socket.io Cloud:', err);
+    }
+  }
+
+  _initSupabaseRealtime() {
+    if (typeof window === 'undefined' || !supabase) return;
+
+    try {
+      // Suscripción al Canal en Tiempo Real de Supabase
+      this.supabaseChannel = supabase
+        .channel('gastroflow_realtime_channel')
+        .on('broadcast', { event: 'gastroflow_event' }, async (response) => {
+          if (response.payload && response.payload.senderId !== this.deviceId) {
+            await this._handleIncomingCloudEvent(response.payload.type, response.payload.payload, false);
+          }
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, async (payload) => {
+          if (payload.new) {
+            await this._handleIncomingCloudEvent('ORDER_UPDATED', { order: payload.new }, false);
+          }
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'detalles_pedido' }, async (payload) => {
+          if (payload.new) {
+            await this._handleIncomingCloudEvent('KDS_STATUS_CHANGED', payload.new, false);
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('📡 Suscrito exitosamente a Supabase Realtime Channel');
+          }
+        });
+    } catch (err) {
+      console.log('Notificación Supabase Realtime (Esperando credenciales en .env.local):', err.message);
     }
   }
 
@@ -137,7 +172,18 @@ class LiveSyncEngine {
       } catch (err) {}
     }
 
-    // 3. Transmitir a la Nube (Socket.io Cloud en Render para Tablet ➔ PC ➔ KDS)
+    // 3. Transmitir a través de Supabase Realtime Broadcast Channel
+    if (this.supabaseChannel) {
+      try {
+        this.supabaseChannel.send({
+          type: 'broadcast',
+          event: 'gastroflow_event',
+          payload: eventPacket
+        });
+      } catch (err) {}
+    }
+
+    // 4. Transmitir a través de WebSockets Socket.io Cloud
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       try {
         this.ws.send(JSON.stringify(eventPacket));

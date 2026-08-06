@@ -1,16 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const rawKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
-if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error(
-    'Faltan VITE_SUPABASE_URL o VITE_SUPABASE_PUBLISHABLE_KEY'
-  );
-}
+// Validar que la URL sea una URL HTTP/HTTPS válida de Supabase
+const isValidUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch (e) {
+    return false;
+  }
+};
 
-export const supabase = createClient(
-  supabaseUrl,
-  supabasePublishableKey
+export const isSupabaseConfigured = Boolean(
+  rawUrl && 
+  rawKey && 
+  isValidUrl(rawUrl) && 
+  !rawUrl.includes('PEGA_AQUI')
 );
+
+export const supabase = isSupabaseConfigured
+  ? createClient(rawUrl, rawKey)
+  : null;
