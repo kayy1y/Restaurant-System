@@ -1,48 +1,129 @@
 /**
- * Motor de Sincronización en Tiempo Real Multidispositivo (Pub/Sub + Cloud WebSocket Relay + BroadcastChannel)
- * GastroFlow OS - Permite reactividad bidireccional instantánea entre Saloneros, Cocina, Caja y Administración
- * en el mismo navegador o entre múltiples dispositivos (Tablets, PCs, Teléfonos) conectados a Vercel.
+ * Motor de Sincronización en la Nube y Multidispositivo GastroFlow OS
+ * Sincroniza datos transaccionales de IndexedDB automáticamente entre la Tablet del Salonero, la Computadora de Caja y el Monitor de Cocina.
  */
 
-import { cloudRelay } from './cloudSync.js';
+import { dbPut, dbGet, dbGetAll } from './db.js';
 
 class LiveSyncEngine {
   constructor() {
     this.listeners = new Map();
+    this.deviceId = `device-${Math.random().toString(36).substring(2, 9)}`;
     
-    // 1. BroadcastChannel para pestañas/ventanas locales
+    // BroadcastChannel local
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      this.channel = new BroadcastChannel('gastroflow_live_sync_channel');
-      this.channel.onmessage = (event) => {
+      this.channel = new BroadcastChannel('gastroflow_sync_channel_v4');
+      this.channel.onmessage = async (event) => {
         if (event.data && event.data.type && event.data.payload) {
-          this._notifyLocalListeners(event.data.type, event.data.payload, false);
+          await this._handleIncomingCloudEvent(event.data.type, event.data.payload, false);
         }
       };
     }
 
-    // 2. LocalStorage Fallback para navegadores antiguos
+    // LocalStorage Event Bus para sincronización local
     if (typeof window !== 'undefined') {
-      window.addEventListener('storage', (e) => {
-        if (e.key === 'gastroflow_last_event' && e.newValue) {
+      window.addEventListener('storage', async (e) => {
+        if (e.key === 'gastroflow_cloud_sync_bus' && e.newValue) {
           try {
             const parsed = JSON.parse(e.newValue);
-            if (parsed.type && parsed.payload) {
-              this._notifyLocalListeners(parsed.type, parsed.payload, false);
+            if (parsed.senderId !== this.deviceId && parsed.type && parsed.payload) {
+              await this._handleIncomingCloudEvent(parsed.type, parsed.payload, false);
             }
           } catch (err) {
-            console.error('Error procesando evento de storage:', err);
+            console.error('Error storage bus:', err);
           }
         }
       });
     }
 
-    // 3. Escuchar eventos provenientes de la Nube (WebSocket Cloud Relay para Vercel)
-    cloudRelay.setOnEventCallback((type, payload) => {
-      this._notifyLocalListeners(type, payload, false);
-    });
+    // Inicializar transporte WebSocket Cloud Relay para Vercel & Dispositivos Externos
+    this._initCloudWebSocket();
   }
 
-  // Suscribirse a eventos (ej. 'ORDER_CREATED', 'ORDER_UPDATED', 'KDS_STATUS_CHANGED', 'TABLE_RELEASED', 'PAYMENT_COMPLETED')
+  _initCloudWebSocket() {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Endpoint WebSocket Cloud Relay de alta disponibilidad
+      const wssUrl = 'wss://free.piesocket.com/v3/gastroflow_v2025_channel?api_key=VCx2BCc3ibJyOYAiB2ZajStrength';
+      this.ws = new WebSocket(wssUrl);
+
+      this.ws.onopen = () => {
+        console.log('⚡ Conectado a GastroFlow Cloud Relay Multidispositivo');
+      };
+
+      this.ws.onmessage = async (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg && msg.senderId !== this.deviceId && msg.type && msg.payload) {
+            await this._handleIncomingCloudEvent(msg.type, msg.payload, false);
+          }
+        } catch (err) {
+          // Ignorar pings
+        }
+      };
+
+      this.ws.onclose = () => {
+        setTimeout(() => this._initCloudWebSocket(), 4000);
+      };
+    } catch (err) {
+      console.error('Error iniciando WebSocket Cloud:', err);
+    }
+  }
+
+  /**
+   * PROCESADOR CLAVE: Guarda primero el objeto recibido en la IndexedDB del dispositivo receptor
+   * ANTES de notificar a las vistas (Tablet/Compu) para que loadData() encuentre los datos reales en DB.
+   */
+  async _handleIncomingCloudEvent(type, payload, shouldBroadcast = true) {
+    try {
+      if (type === 'ORDER_CREATED') {
+        if (payload.order) await dbPut('orders', payload.order);
+        if (payload.comanda) await dbPut('comandas', payload.comanda);
+      } else if (type === 'ORDER_UPDATED') {
+        if (payload.order) await dbPut('orders', payload.order);
+        if (payload.newComanda) await dbPut('comandas', payload.newComanda);
+      } else if (type === 'KDS_STATUS_CHANGED') {
+        if (payload.id) await dbPut('comandas', payload);
+        if (payload.order_id) {
+          const ord = await dbGet('orders', payload.order_id);
+          if (ord) {
+            let newStatus = 'EN_PREPARACION';
+            if (payload.status === 'Listo' || payload.status === 'LISTO_PARA_ENTREGA') newStatus = 'LISTO_PARA_ENTREGA';
+            else if (payload.status === 'Entregado') newStatus = 'ENTREGADO';
+            await dbPut('orders', { ...ord, status: newStatus });
+          }
+        }
+      } else if (type === 'TABLE_RELEASED') {
+        if (payload.orderId) {
+          const ord = await dbGet('orders', payload.orderId);
+          if (ord) {
+            await dbPut('orders', { ...ord, status: 'PAGADO', account_status: 'PAGADA', order_lifecycle: 'CERRADO' });
+          }
+        }
+      } else if (type === 'PAYMENT_COMPLETED') {
+        if (payload.order) await dbPut('orders', payload.order);
+      } else if (type === 'INCIDENT_REPORTED') {
+        if (payload.incident) await dbPut('incidents', payload.incident);
+      }
+    } catch (dbErr) {
+      console.error('Error guardando en IndexedDB local:', dbErr);
+    }
+
+    // Notificar a los componentes de la interfaz local
+    const subs = this.listeners.get(type);
+    if (subs) {
+      subs.forEach(callback => {
+        try {
+          callback(payload);
+        } catch (err) {
+          console.error(`Error en listener ${type}:`, err);
+        }
+      });
+    }
+  }
+
+  // Suscribirse a eventos
   subscribe(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -51,52 +132,44 @@ class LiveSyncEngine {
 
     return () => {
       const subs = this.listeners.get(event);
-      if (subs) {
-        subs.delete(callback);
-      }
+      if (subs) subs.delete(callback);
     };
   }
 
-  // Notificar oyentes locales
-  _notifyLocalListeners(event, payload, shouldBroadcast = true) {
-    const subs = this.listeners.get(event);
-    if (subs) {
-      subs.forEach(callback => {
-        try {
-          callback(payload);
-        } catch (err) {
-          console.error(`Error en listener de evento ${event}:`, err);
-        }
-      });
-    }
-  }
+  // Emitir evento e insertar en Nube + Local
+  async emit(event, payload) {
+    // 1. Guardar y procesar localmente
+    await this._handleIncomingCloudEvent(event, payload, true);
 
-  // Emitir evento a todos los componentes locales y retransmitir a la NUBE (Vercel Multidispositivo)
-  emit(event, payload) {
-    this._notifyLocalListeners(event, payload, true);
-
-    // Broadcast local a otras pestañas
+    // 2. Transmitir por BroadcastChannel (Mismo dispositivo / Pestañas)
     if (this.channel) {
       try {
         this.channel.postMessage({ type: event, payload, timestamp: Date.now() });
-      } catch (err) {
-        console.error('Error postMessage BroadcastChannel:', err);
-      }
+      } catch (err) {}
     }
 
-    // Broadcast en la NUBE para Vercel (Tablet ➔ PC Cajero ➔ Monitor Cocina)
-    cloudRelay.broadcast(event, payload);
-
-    if (typeof window !== 'undefined' && window.localStorage) {
+    // 3. Transmitir por WebSocket Cloud (Distintos Dispositivos Físicos: Tablet vs Compu)
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       try {
-        window.localStorage.setItem('gastroflow_last_event', JSON.stringify({
+        this.ws.send(JSON.stringify({
+          senderId: this.deviceId,
           type: event,
-          payload,
+          payload: payload,
           timestamp: Date.now()
         }));
-      } catch (e) {
-        // Ignorar si storage está lleno
-      }
+      } catch (err) {}
+    }
+
+    // 4. Fallback LocalStorage Bus
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem('gastroflow_cloud_sync_bus', JSON.stringify({
+          senderId: this.deviceId,
+          type: event,
+          payload: payload,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
     }
   }
 }
