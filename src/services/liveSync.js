@@ -1,18 +1,21 @@
 /**
- * Motor de Sincronización en la Nube y Multidispositivo GastroFlow OS
- * Sincroniza datos transaccionales de IndexedDB automáticamente entre la Tablet del Salonero, la Computadora de Caja y el Monitor de Cocina.
+ * Motor de Sincronización en la Nube Multidispositivo GastroFlow OS (Socket.io Cloud Relay)
+ * Conecta Tablets, Computadoras de Caja y Pantallas de Cocina a través del servidor dedicado gratuito en Render.com.
  */
 
-import { dbPut, dbGet, dbGetAll } from './db.js';
+import { dbPut, dbGet } from './db.js';
+
+// URL del Servidor Socket.io en la Nube (Render.com)
+const SOCKET_SERVER_URL = 'https://gastroflow-socket-server.onrender.com';
 
 class LiveSyncEngine {
   constructor() {
     this.listeners = new Map();
     this.deviceId = `device-${Math.random().toString(36).substring(2, 9)}`;
     
-    // BroadcastChannel local
+    // 1. BroadcastChannel local (mismo navegador / pestañas)
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      this.channel = new BroadcastChannel('gastroflow_sync_channel_v4');
+      this.channel = new BroadcastChannel('gastroflow_sync_channel_v6');
       this.channel.onmessage = async (event) => {
         if (event.data && event.data.type && event.data.payload) {
           await this._handleIncomingCloudEvent(event.data.type, event.data.payload, false);
@@ -20,36 +23,20 @@ class LiveSyncEngine {
       };
     }
 
-    // LocalStorage Event Bus para sincronización local
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', async (e) => {
-        if (e.key === 'gastroflow_cloud_sync_bus' && e.newValue) {
-          try {
-            const parsed = JSON.parse(e.newValue);
-            if (parsed.senderId !== this.deviceId && parsed.type && parsed.payload) {
-              await this._handleIncomingCloudEvent(parsed.type, parsed.payload, false);
-            }
-          } catch (err) {
-            console.error('Error storage bus:', err);
-          }
-        }
-      });
-    }
-
-    // Inicializar transporte WebSocket Cloud Relay para Vercel & Dispositivos Externos
-    this._initCloudWebSocket();
+    // 2. Conectar al Servidor WebSocket / Socket.io Cloud
+    this._initSocketConnection();
   }
 
-  _initCloudWebSocket() {
+  _initSocketConnection() {
     if (typeof window === 'undefined') return;
 
     try {
-      // Endpoint WebSocket Cloud Relay de alta disponibilidad
-      const wssUrl = 'wss://free.piesocket.com/v3/gastroflow_v2025_channel?api_key=VCx2BCc3ibJyOYAiB2ZajStrength';
-      this.ws = new WebSocket(wssUrl);
+      // Conexión limpia por WebSocket WSS a Render / Servidor Socket.io
+      const socketUrl = SOCKET_SERVER_URL.replace('http', 'ws');
+      this.ws = new WebSocket(socketUrl);
 
       this.ws.onopen = () => {
-        console.log('⚡ Conectado a GastroFlow Cloud Relay Multidispositivo');
+        console.log('⚡ Conectado exitosamente al servidor Socket.io Cloud en Render');
       };
 
       this.ws.onmessage = async (e) => {
@@ -58,22 +45,19 @@ class LiveSyncEngine {
           if (msg && msg.senderId !== this.deviceId && msg.type && msg.payload) {
             await this._handleIncomingCloudEvent(msg.type, msg.payload, false);
           }
-        } catch (err) {
-          // Ignorar pings
-        }
+        } catch (err) {}
       };
 
       this.ws.onclose = () => {
-        setTimeout(() => this._initCloudWebSocket(), 4000);
+        setTimeout(() => this._initSocketConnection(), 4000);
       };
     } catch (err) {
-      console.error('Error iniciando WebSocket Cloud:', err);
+      console.error('Error conectando a Socket.io Cloud:', err);
     }
   }
 
   /**
-   * PROCESADOR CLAVE: Guarda primero el objeto recibido en la IndexedDB del dispositivo receptor
-   * ANTES de notificar a las vistas (Tablet/Compu) para que loadData() encuentre los datos reales en DB.
+   * GUARDA PRIMERO EN INDEXEDDB LOCAL DEL DISPOSITIVO RECEPTOR (TABLET / COMPU)
    */
   async _handleIncomingCloudEvent(type, payload, shouldBroadcast = true) {
     try {
@@ -110,7 +94,7 @@ class LiveSyncEngine {
       console.error('Error guardando en IndexedDB local:', dbErr);
     }
 
-    // Notificar a los componentes de la interfaz local
+    // Notificar a los componentes de interfaz local
     const subs = this.listeners.get(type);
     if (subs) {
       subs.forEach(callback => {
@@ -123,7 +107,6 @@ class LiveSyncEngine {
     }
   }
 
-  // Suscribirse a eventos
   subscribe(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -136,40 +119,29 @@ class LiveSyncEngine {
     };
   }
 
-  // Emitir evento e insertar en Nube + Local
   async emit(event, payload) {
-    // 1. Guardar y procesar localmente
+    // 1. Guardar y procesar localmente primero
     await this._handleIncomingCloudEvent(event, payload, true);
 
-    // 2. Transmitir por BroadcastChannel (Mismo dispositivo / Pestañas)
+    const eventPacket = {
+      senderId: this.deviceId,
+      type: event,
+      payload: payload,
+      timestamp: Date.now()
+    };
+
+    // 2. Transmitir por BroadcastChannel (Mismo dispositivo)
     if (this.channel) {
       try {
-        this.channel.postMessage({ type: event, payload, timestamp: Date.now() });
+        this.channel.postMessage(eventPacket);
       } catch (err) {}
     }
 
-    // 3. Transmitir por WebSocket Cloud (Distintos Dispositivos Físicos: Tablet vs Compu)
+    // 3. Transmitir a la Nube (Socket.io Cloud en Render para Tablet ➔ PC ➔ KDS)
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       try {
-        this.ws.send(JSON.stringify({
-          senderId: this.deviceId,
-          type: event,
-          payload: payload,
-          timestamp: Date.now()
-        }));
+        this.ws.send(JSON.stringify(eventPacket));
       } catch (err) {}
-    }
-
-    // 4. Fallback LocalStorage Bus
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        window.localStorage.setItem('gastroflow_cloud_sync_bus', JSON.stringify({
-          senderId: this.deviceId,
-          type: event,
-          payload: payload,
-          timestamp: Date.now()
-        }));
-      } catch (e) {}
     }
   }
 }
