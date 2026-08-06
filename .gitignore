@@ -1,0 +1,26 @@
+# Dependencias
+node_modules
+.pnpm-store
+
+# Archivos de Compilación
+dist
+dist-ssr
+*.local
+build
+
+# Sistema Operativo y Caché
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs y Entornos
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.local
+.env.production
