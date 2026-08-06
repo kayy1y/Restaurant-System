@@ -1,7 +1,8 @@
 import React from 'react';
-import { Lock, UserCheck, ChefHat, CreditCard, ShieldCheck, User } from 'lucide-react';
+import { Lock, UserCheck, ChefHat, CreditCard, ShieldCheck, User, Radio, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { authenticateByPin, getAllUsers } from '../services/authService';
 import { INITIAL_USERS } from '../services/db';
+import { testSupabaseConnection } from '../services/supabaseDiagnostic';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [users, setUsers] = React.useState(INITIAL_USERS);
@@ -9,6 +10,10 @@ export default function LoginScreen({ onLoginSuccess }) {
   const [pinInput, setPinInput] = React.useState('');
   const [errorMsg, setErrorMsg] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // Estado del Probador de Supabase
+  const [supabaseStatus, setSupabaseStatus] = React.useState(null);
+  const [testingSupabase, setTestingSupabase] = React.useState(false);
 
   React.useEffect(() => {
     getAllUsers().then(data => {
@@ -18,6 +23,13 @@ export default function LoginScreen({ onLoginSuccess }) {
       }
     }).catch(err => console.error('Error cargando usuarios:', err));
   }, []);
+
+  const handleTestSupabaseClick = async () => {
+    setTestingSupabase(true);
+    const res = await testSupabaseConnection();
+    setSupabaseStatus(res);
+    setTestingSupabase(false);
+  };
 
   const handleKeypadPress = (digit) => {
     if (pinInput.length < 4) {
@@ -61,7 +73,34 @@ export default function LoginScreen({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#070a12] flex items-center justify-center p-4 selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#070a12] flex flex-col items-center justify-center p-4 selection:bg-amber-500 selection:text-slate-950">
+      
+      {/* TARJETA DESTACADA SUPERIOR: PROBADOR DIRECTO DE SUPABASE DB */}
+      <div className="w-full max-w-md mb-3">
+        <button
+          type="button"
+          onClick={handleTestSupabaseClick}
+          disabled={testingSupabase}
+          className="w-full bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 text-amber-300 border border-amber-500/50 p-3 rounded-2xl flex items-center justify-between gap-2 shadow-lg transition-all"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs">
+            <Radio className="w-4 h-4 text-amber-400 animate-pulse" />
+            <span>{testingSupabase ? 'Probando conexión con Supabase...' : '🔌 PROBAR CONEXIÓN SUPABASE DB'}</span>
+          </div>
+          <span className="bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-1 rounded-xl">Probar Ahora</span>
+        </button>
+
+        {supabaseStatus && (
+          <div className={`mt-2 p-3.5 rounded-2xl border text-xs ${supabaseStatus.dbPingSuccess ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200' : 'bg-amber-500/15 border-amber-500/50 text-amber-200'}`}>
+            <div className="flex items-center gap-2 font-bold">
+              {supabaseStatus.dbPingSuccess ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 text-amber-400" />}
+              <span>{supabaseStatus.dbPingSuccess ? '¡Supabase DB Conectado Correctamente!' : 'Información Conexión Supabase:'}</span>
+            </div>
+            <p className="text-[11px] font-mono mt-1">{supabaseStatus.dbPingMessage}</p>
+          </div>
+        )}
+      </div>
+
       <div className="glass-panel border border-slate-700/80 w-full max-w-md rounded-3xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-250">
         {/* Brand Header */}
         <div className="text-center space-y-2">
