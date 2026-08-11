@@ -153,27 +153,20 @@ export default function App() {
             />
           )}
 
-          {/* Renderizado Dinámico e Instantáneo de Vistas Operativas según la Sesión Activa */}
-          {activeTab !== 'identidad' && activeTab !== 'reservas' && roleUpper === 'SALONERO' && (
-            <SaloneroView activeSessionUser={activeSession.user} />
+          {/* Módulo de Facturación v4.3 */}
+          {activeTab === 'facturas' && (
+            <InvoiceManager currentRole={currentRole} />
           )}
 
-          {activeTab !== 'identidad' && activeTab !== 'reservas' && roleUpper === 'COCINA' && (
-            <CocinaView />
-          )}
-
-          {activeTab !== 'identidad' && activeTab !== 'reservas' && roleUpper === 'CAJERO' && (
-            activeTab === 'facturas' ? <InvoiceManager currentRole={currentRole} invoices={[]} /> : <CajeroView />
-          )}
-
-          {/* Renderizado para Administrador y Navegación General */}
-          {activeTab !== 'identidad' && activeTab !== 'reservas' && (roleUpper === 'ADMINISTRADOR' || roleUpper === 'GERENTE' || roleUpper === 'BARRA' || roleUpper === 'INVENTARIO') && (
+          {/* Renderizado de Pestañas Operativas Generales */}
+          {activeTab !== 'identidad' && activeTab !== 'reservas' && activeTab !== 'facturas' && (
             <>
-              {activeTab === 'mesas' && <SaloneroView activeSessionUser={activeSession.user} />}
+              {(activeTab === 'mesas' || (roleUpper === 'SALONERO' && activeTab !== 'cocina' && activeTab !== 'caja')) && (
+                <SaloneroView activeSessionUser={activeSession.user} />
+              )}
               {activeTab === 'cocina' && <CocinaView />}
               {activeTab === 'caja' && <CajeroView />}
               {activeTab === 'inventario' && <InventoryDashboard currentRole={currentRole} />}
-              {activeTab === 'facturas' && <InvoiceManager currentRole={currentRole} invoices={[]} />}
               {activeTab === 'devoluciones' && <ReturnsModal orders={[]} currentRole={currentRole} onLogAudit={() => {}} />}
               {activeTab === 'ia' && <GastroAIAssistant orders={[]} rawIngredients={[]} currentRole={currentRole} />}
               {activeTab === 'reportes' && <ReportsDashboard />}

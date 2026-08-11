@@ -13,6 +13,7 @@ import { getInventoryItems, getUnitsOfMeasure } from '../../services/inventorySe
 import { getAllUsers, saveUser } from '../../services/authService.js';
 import { runAutomatedSystemTests } from '../../services/testRunner.js';
 import { runWorkerSwitchTestRunner } from '../../services/workerSwitchTestRunner.js';
+import { runBillingFlowTests } from '../../services/billingFlowTestRunner.js';
 import { testSupabaseConnection } from '../../services/supabaseDiagnostic.js';
 
 export default function AdminView() {
@@ -181,7 +182,8 @@ export default function AdminView() {
     setRunningTests(true);
     const r1 = await runAutomatedSystemTests();
     const r2 = await runWorkerSwitchTestRunner();
-    setTestResults([...r1, ...r2]);
+    const r3 = await runBillingFlowTests();
+    setTestResults([...r1, ...r2, ...r3]);
     const diag = await testSupabaseConnection();
     setSupabaseDiag(diag);
     setRunningTests(false);

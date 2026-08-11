@@ -154,6 +154,10 @@ class LiveSyncEngine {
     };
   }
 
+  on(event, callback) {
+    return this.subscribe(event, callback);
+  }
+
   async emit(event, payload) {
     // 1. Guardar y procesar localmente primero
     await this._handleIncomingCloudEvent(event, payload, true);

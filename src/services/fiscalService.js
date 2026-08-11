@@ -3,10 +3,10 @@
  * Maneja emisión automática, reintentos en segundo plano, idempotencia y notas de crédito.
  */
 
-import { dbGetAll, dbGet, dbPut } from './db';
-import { generateClaveFiscalCR, calculateTaxesCR, generateXMLFiscalCR } from '../utils/fiscalCR';
-import { RESTAURANT_INFO } from '../data/mockData';
-import { liveSync } from './liveSync';
+import { dbGetAll, dbGet, dbPut } from './db.js';
+import { generateClaveFiscalCR, calculateTaxesCR, generateXMLFiscalCR } from '../utils/fiscalCR.js';
+import { RESTAURANT_INFO } from '../data/mockData.js';
+import { liveSync } from './liveSync.js';
 
 /**
  * Emitir Factura o Tiquete Electrónico v4.3 con Cola de Contingencia

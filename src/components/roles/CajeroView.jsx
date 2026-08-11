@@ -1,26 +1,31 @@
 import React from 'react';
 import { 
-  CreditCard, DollarSign, Receipt, CheckCircle2, ShieldCheck, 
-  Send, RefreshCw, AlertCircle, FileText, Lock, MoreVertical, Trash2, Edit3 
+  CreditCard, DollarSign, CheckCircle2, RefreshCw, 
+  Trash2, AlertTriangle, Lock, FileText, ArrowRight, ShieldCheck
 } from 'lucide-react';
-
-import { getActiveOrdersForWaiters, processPaymentAndReleaseTable, removeItemFromOrder } from '../../services/orderService.js';
-import { getFiscalQueue, emitFiscalDocumentV43 } from '../../services/fiscalService.js';
-import { liveSync } from '../../services/liveSync.js';
+import { dbGetAll, dbGet } from '../../services/db.js';
+import { removeItemFromOrder, setOrderCheckoutLock } from '../../services/orderService.js';
+import { processOrderPayment } from '../../services/paymentService.js';
+import { getFiscalQueue } from '../../services/fiscalService.js';
 
 export default function CajeroView() {
   const [orders, setOrders] = React.useState([]);
   const [selectedOrderId, setSelectedOrderId] = React.useState(null);
-  const [paymentMethod, setPaymentMethod] = React.useState('Tarjeta POS');
-  const [customerName, setCustomerName] = React.useState('Consumidor Final');
-  const [customerEmail, setCustomerEmail] = React.useState('');
+  const [selectedOrder, setSelectedOrder] = React.useState(null);
   const [isProcessing, setIsProcessing] = React.useState(false);
-  const [fiscalQueue, setFiscalQueue] = React.useState([]);
 
-  // Menú contextual desplegable [ ⋮ ] por línea de producto
-  const [openLineMenuIndex, setOpenLineMenuIndex] = React.useState(null);
+  // Formulario de Pago
+  const [paymentMethod, setPaymentMethod] = React.useState('Efectivo');
+  const [amountPaidInput, setAmountPaidInput] = React.useState('');
+  const [referenceNumber, setReferenceNumber] = React.useState('');
+  const [cardType, setCardType] = React.useState('Visa');
+  const [customerName, setCustomerName] = React.useState('Consumidor Final');
+  const [customerId, setCustomerId] = React.useState('000000000');
+  const [customerEmail, setCustomerEmail] = React.useState('cliente@lavidsteakhouse.cr');
+  const [paymentNotes, setPaymentNotes] = React.useState('');
+  const [paymentError, setPaymentError] = React.useState('');
 
-  // Formulario para Quitar Producto desde Caja con Motivo Escrito Obligatorio
+  // Modal para Quitar Producto
   const [removingItemIndex, setRemovingItemIndex] = React.useState(null);
   const [writtenReason, setWrittenReason] = React.useState('');
   const [managerPin, setManagerPin] = React.useState('');
@@ -28,85 +33,78 @@ export default function CajeroView() {
   const [recalcSummary, setRecalcSummary] = React.useState(null);
 
   const loadCajaData = React.useCallback(async () => {
-    try {
-      const activeOrds = await getActiveOrdersForWaiters();
-      setOrders(activeOrds);
-      const fq = await getFiscalQueue();
-      setFiscalQueue(fq);
+    const allOrders = await dbGetAll('orders');
+    const pendingOrders = allOrders.filter(o => o.status !== 'PAGADO' && o.status !== 'CANCELADO');
+    setOrders(pendingOrders);
 
-      setSelectedOrderId(prevId => {
-        if (prevId && activeOrds.some(o => o.id === prevId)) return prevId;
-        return activeOrds.length > 0 ? activeOrds[0].id : null;
-      });
-    } catch (err) {
-      console.error('Error cargando datos de caja:', err);
+    if (selectedOrderId) {
+      const currentSelected = pendingOrders.find(o => o.id === selectedOrderId);
+      setSelectedOrder(currentSelected || null);
+      if (currentSelected && (!amountPaidInput || Number(amountPaidInput) < currentSelected.total)) {
+        setAmountPaidInput(currentSelected.total.toString());
+      }
+    } else if (pendingOrders.length > 0 && !selectedOrderId) {
+      setSelectedOrderId(pendingOrders[0].id);
+      setSelectedOrder(pendingOrders[0]);
+      setAmountPaidInput(pendingOrders[0].total.toString());
+    } else {
+      setSelectedOrder(null);
     }
-  }, []);
+  }, [selectedOrderId, amountPaidInput]);
 
   React.useEffect(() => {
     loadCajaData();
-
-    // Sincronización puramente orientada a eventos para 0 lag al cambiar de cuenta
-    const unsubBill = liveSync.subscribe('BILL_REQUESTED', () => loadCajaData());
-    const unsubOrder = liveSync.subscribe('ORDER_CREATED', () => loadCajaData());
-    const unsubUpdated = liveSync.subscribe('ORDER_UPDATED', () => loadCajaData());
-    const unsubTable = liveSync.subscribe('TABLE_RELEASED', () => loadCajaData());
-    const unsubPayment = liveSync.subscribe('PAYMENT_COMPLETED', () => loadCajaData());
-
-    return () => {
-      unsubBill();
-      unsubOrder();
-      unsubUpdated();
-      unsubTable();
-      unsubPayment();
-    };
   }, [loadCajaData]);
 
-  // Selección fluida e instantánea de cuenta sin saltos de scroll ni re-renders innecesarios
-  const handleSelectOrder = (ordId) => {
-    setSelectedOrderId(ordId);
+  const handleSelectOrder = async (orderId) => {
+    setSelectedOrderId(orderId);
+    setPaymentError('');
     setRecalcSummary(null);
-    setOpenLineMenuIndex(null);
+    const ord = orders.find(o => o.id === orderId);
+    if (ord) {
+      setSelectedOrder(ord);
+      setAmountPaidInput(ord.total.toString());
+      await setOrderCheckoutLock(orderId, true);
+    }
   };
 
-  const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
-
-  // Quitar Producto desde la Pantalla de Cobro con Motivo Escrito Obligatorio
-  const handleConfirmRemoveFromCaja = async (e) => {
+  // Quitar Producto de la Cuenta con Recálculo Dinámico
+  const handleConfirmRemoveItem = async (e) => {
     e.preventDefault();
     setRemoveError('');
 
     if (!writtenReason || writtenReason.trim().length < 8) {
-      setRemoveError('Debe escribir la explicación del motivo (mínimo 8 caracteres). Ej: "El producto no fue entregado al cliente".');
+      setRemoveError('Debe escribir la explicación del motivo (mínimo 8 caracteres).');
       return;
     }
 
     if (!selectedOrder) return;
+    const itemTarget = selectedOrder.items[removingItemIndex];
+    if (!itemTarget) return;
 
     const previousTotal = selectedOrder.total;
-    const itemTarget = selectedOrder.items[removingItemIndex];
-
     setIsProcessing(true);
+
     try {
       const updatedOrd = await removeItemFromOrder({
         orderId: selectedOrder.id,
         itemIndex: removingItemIndex,
         writtenReason: writtenReason,
         userName: 'Ana Cajera',
-        managerPin: managerPin || '9999'
+        managerPin: managerPin
       });
 
       setIsProcessing(false);
+      setSelectedOrder(updatedOrd);
       setRemovingItemIndex(null);
-      setOpenLineMenuIndex(null);
       setWrittenReason('');
       setManagerPin('');
+      setAmountPaidInput(updatedOrd.total.toString());
 
-      // Desglose Transparente de Recálculo en Caja
       setRecalcSummary({
         previousTotal: previousTotal,
         removedItemName: itemTarget.product_name,
-        removedAmount: itemTarget.item_total,
+        removedAmount: itemTarget.item_total || (itemTarget.unit_price * itemTarget.quantity),
         newTotal: updatedOrd.total
       });
 
@@ -117,35 +115,63 @@ export default function CajeroView() {
     }
   };
 
-  // Confirmar Pago y Generar Factura v4.3
+  // Confirmar Pago Transaccional & Generar Factura Automática
   const handleConfirmPayment = async () => {
     if (!selectedOrder) return;
+    setPaymentError('');
+
+    const numericPaid = Number(amountPaidInput) || selectedOrder.total;
+
+    if (paymentMethod === 'Efectivo' && numericPaid < selectedOrder.total) {
+      setPaymentError(`El monto recibido (₡${numericPaid.toLocaleString()}) no puede ser menor al total a pagar (₡${selectedOrder.total.toLocaleString()}).`);
+      return;
+    }
 
     setIsProcessing(true);
+
     try {
-      const paidOrder = await processPaymentAndReleaseTable({
+      const result = await processOrderPayment({
         orderId: selectedOrder.id,
         paymentMethod: paymentMethod,
-        customerName: customerName,
-        cashierName: 'Ana Cajera'
-      });
-
-      await emitFiscalDocumentV43({
-        orderId: paidOrder.id,
-        customerName: customerName,
-        customerEmail: customerEmail
+        amountPaid: numericPaid,
+        referenceNumber: referenceNumber,
+        cardType: cardType,
+        customerName: customerName.trim() || 'Consumidor Final',
+        customerId: customerId.trim() || '000000000',
+        customerEmail: customerEmail.trim() || 'cliente@lavidsteakhouse.cr',
+        cashierName: 'Ana Cajera',
+        notes: paymentNotes
       });
 
       setIsProcessing(false);
-      alert(`¡Cobro de ₡${paidOrder.total.toLocaleString()} exitoso! Mesa ${paidOrder.table_name} liberada automáticamente.`);
+
+      let msg = `¡Cobro exitoso!\n\n` +
+        `• Factura Emitida: ${result.invoice.consecutivo}\n` +
+        `• Total: ₡${result.order.total.toLocaleString()}\n` +
+        `• Método: ${paymentMethod}\n`;
+
+      if (paymentMethod === 'Efectivo' && result.change > 0) {
+        msg += `• Monto Recibido: ₡${numericPaid.toLocaleString()}\n` +
+          `• CAMBIO / VUELTO: ₡${result.change.toLocaleString()}\n`;
+      }
+
+      msg += `\nMesa ${selectedOrder.table_name} liberada automáticamente. Guardado en apartado Facturas.`;
+
+      alert(msg);
+
       setSelectedOrderId(null);
+      setSelectedOrder(null);
       setRecalcSummary(null);
+      setReferenceNumber('');
+      setPaymentNotes('');
       await loadCajaData();
     } catch (err) {
       setIsProcessing(false);
-      alert('Error en cobro: ' + err.message);
+      setPaymentError(err.message || 'Error en el procesamiento del pago.');
     }
   };
+
+  const calculatedChange = Math.max(0, (Number(amountPaidInput) || 0) - (selectedOrder?.total || 0));
 
   return (
     <div className="space-y-6 text-[#1f1209]">
@@ -157,7 +183,7 @@ export default function CajeroView() {
           </div>
           <div>
             <h2 className="font-heading font-extrabold text-lg text-[#1f1209]">Módulo de Caja, Cobros & Comprobantes v4.3</h2>
-            <p className="text-xs text-[#3d2717] font-semibold">Cajera: <strong className="text-[#5d402b]">Ana Cajera</strong> • Selección fluida y rápida de cuentas pendientes</p>
+            <p className="text-xs text-[#3d2717] font-semibold">Cajera: <strong className="text-[#5d402b]">Ana Cajera</strong> • Selección fluida y cobro de cuentas</p>
           </div>
         </div>
 
@@ -172,11 +198,12 @@ export default function CajeroView() {
 
       {/* Grid Principal de Cobros */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-        {/* Lista de Cuentas Pendientes Left */}
+        
+        {/* Lista de Cuentas Pendientes (Columna Izquierda) */}
         <div className="md:col-span-5 glass-panel p-4 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] space-y-3 shadow-md">
           <h3 className="font-bold text-xs text-[#3d2717] uppercase tracking-wider font-mono">Cuentas Pendientes ({orders.length})</h3>
 
-          <div className="space-y-2.5 max-h-[500px] overflow-y-auto">
+          <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
             {orders.length === 0 ? (
               <p className="text-xs text-[#3d2717] italic text-center py-8">No hay cuentas pendientes por cobrar.</p>
             ) : (
@@ -194,16 +221,22 @@ export default function CajeroView() {
                     <div className="flex items-center gap-2">
                       <h4 className="font-bold text-sm">{ord.table_name}</h4>
                       {ord.status === 'ESPERANDO_CUENTA' && (
-                        <span className="bg-[#c86414]/20 text-[#c86414] text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#c86414]/40">
-                          Pre-cuenta Solicitada
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                          selectedOrderId === ord.id ? 'bg-[#fffdf9]/20 text-[#fffdf9] border-[#fffdf9]/40' : 'bg-[#c86414]/20 text-[#c86414] border-[#c86414]/40'
+                        }`}>
+                          Pre-cuenta
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400">Salonero: {ord.waiter_name} • {ord.items.filter(i => i.status !== 'RETIRADO_DE_CUENTA').length} ítems activos</p>
+                    <p className={`text-xs ${selectedOrderId === ord.id ? 'text-[#e2d7c5]' : 'text-[#3d2717]'}`}>
+                      Salonero: {ord.waiter_name} • {ord.items.filter(i => i.status !== 'RETIRADO_DE_CUENTA').length} ítems
+                    </p>
                   </div>
 
                   <div className="text-right">
-                    <span className="font-mono font-extrabold text-amber-400 text-sm">₡{ord.total.toLocaleString()}</span>
+                    <span className={`font-mono font-extrabold text-sm ${selectedOrderId === ord.id ? 'text-[#fffdf9]' : 'text-[#5d402b]'}`}>
+                      ₡{ord.total.toLocaleString()}
+                    </span>
                   </div>
                 </div>
               ))
@@ -211,180 +244,295 @@ export default function CajeroView() {
           </div>
         </div>
 
-        {/* Detalle de Cuenta Seleccionada & Acciones Contextuales Right */}
-        <div className="md:col-span-7 glass-panel p-5 rounded-2xl border border-slate-800 space-y-4 flex flex-col justify-between">
+        {/* Detalle de Cuenta Seleccionada & Formulario de Pago (Columna Derecha) */}
+        <div className="md:col-span-7 glass-panel p-5 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] space-y-4 flex flex-col justify-between shadow-md">
           {selectedOrder ? (
             <>
               <div>
-                <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div className="flex justify-between items-start border-b border-[#dac8b3] pb-3">
                   <div>
-                    <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <h3 className="font-heading font-extrabold text-base text-[#1f1209] flex items-center gap-2">
                       Detalle de Cuenta - {selectedOrder.table_name}
-                      <span className="text-xs text-slate-400 font-mono">({selectedOrder.id})</span>
+                      <span className="text-xs text-[#3d2717] font-mono font-bold">({selectedOrder.id})</span>
                     </h3>
-                    <p className="text-xs text-slate-400">Atendido por <strong className="text-amber-300">{selectedOrder.waiter_name}</strong></p>
+                    <p className="text-xs text-[#3d2717] font-semibold">Salonero: <strong className="text-[#5d402b]">{selectedOrder.waiter_name}</strong></p>
                   </div>
-                  <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="bg-[#5d402b]/15 text-[#5d402b] border border-[#5d402b]/30 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                     <Lock className="w-3 h-3" /> En Proceso de Cobro
                   </span>
                 </div>
 
-                {/* Banner de Recálculo Dinámico */}
+                {/* Banner de Recálculo Dinámico al Quitar Productos */}
                 {recalcSummary && (
-                  <div className="mt-3 bg-amber-500/10 border border-amber-500/40 p-3 rounded-xl text-xs space-y-1 text-amber-200">
-                    <p className="font-bold">⚠️ RECÁLCULO AUTOMÁTICO EN CAJA:</p>
-                    <div className="flex justify-between font-mono text-[11px]">
+                  <div className="mt-3 bg-[#c86414]/15 border border-[#c86414]/40 p-3 rounded-2xl text-xs space-y-1 text-[#1f1209]">
+                    <p className="font-bold flex items-center gap-1">
+                      <AlertTriangle className="w-4 h-4 text-[#c86414]" /> Recálculo Automático por Retiro de Producto:
+                    </p>
+                    <div className="flex flex-wrap justify-between font-mono text-[11px] font-bold">
                       <span>Monto Anterior: ₡{recalcSummary.previousTotal.toLocaleString()}</span>
-                      <span>Retirado: {recalcSummary.removedItemName} (-₡{recalcSummary.removedAmount.toLocaleString()})</span>
-                      <strong className="text-amber-400">Nuevo Total: ₡{recalcSummary.newTotal.toLocaleString()}</strong>
+                      <span className="text-[#802319]">Retirado: {recalcSummary.removedItemName} (-₡{recalcSummary.removedAmount.toLocaleString()})</span>
+                      <strong className="text-[#5d402b]">Nuevo Total: ₡{recalcSummary.newTotal.toLocaleString()}</strong>
                     </div>
                   </div>
                 )}
 
-                {/* Lista de Productos con Menú Contextual [ ⋮ ] */}
+                {/* REQUERIMIENTO 5: LISTA DE PRODUCTOS CON BOTÓN "QUITAR" DIRECTAMENTE AL LADO */}
                 <div className="mt-4 space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                  {selectedOrder.items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-3 rounded-xl border flex justify-between items-center text-xs relative ${
-                        item.status === 'RETIRADO_DE_CUENTA' ? 'bg-rose-950/20 border-rose-800/60 text-slate-500 line-through' : 'bg-slate-900 border-slate-800 text-slate-200'
-                      }`}
-                    >
-                      <div>
-                        <p className="font-bold">{item.quantity}x {item.product_name}</p>
-                        {item.notes && <p className="text-[10px] text-amber-300 font-mono">[{item.notes}]</p>}
-                        {item.removal_reason && <p className="text-[9px] text-rose-400 italic">Motivo de retiro: {item.removal_reason}</p>}
-                      </div>
+                  {selectedOrder.items.map((item, idx) => {
+                    const isRemoved = item.status === 'RETIRADO_DE_CUENTA';
+                    const itemSubtotal = item.item_total || (item.unit_price * item.quantity);
 
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-amber-400">₡{item.item_total.toLocaleString()}</span>
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-all ${
+                          isRemoved 
+                            ? 'bg-rose-100/60 border-rose-300 text-stone-500 line-through' 
+                            : 'bg-[#fffdf9] border-[#dac8b3] text-[#1f1209] shadow-sm'
+                        }`}
+                      >
+                        {/* Nombre del Producto y Especificaciones */}
+                        <div className="flex-1">
+                          <p className="font-bold text-[#1f1209] text-xs">
+                            {item.quantity}x {item.product_name}
+                          </p>
+                          {item.notes && <p className="text-[10px] text-[#5d402b] font-mono font-bold">[{item.notes}]</p>}
+                          {item.removal_reason && <p className="text-[10px] text-[#802319] italic font-semibold">Motivo retiro: {item.removal_reason}</p>}
+                        </div>
 
-                        {item.status !== 'RETIRADO_DE_CUENTA' && (
-                          <div className="relative">
+                        {/* Precio Subtotal y BOTÓN QUITAR DIRECTAMENTE AL LADO */}
+                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                          <span className="font-mono font-extrabold text-[#5d402b] text-xs">
+                            ₡{itemSubtotal.toLocaleString()}
+                          </span>
+
+                          {!isRemoved && (
                             <button
                               type="button"
-                              onClick={() => setOpenLineMenuIndex(openLineMenuIndex === idx ? null : idx)}
-                              className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg"
+                              onClick={() => {
+                                setRemovingItemIndex(idx);
+                                setWrittenReason('');
+                                setManagerPin('');
+                                setRemoveError('');
+                              }}
+                              className="bg-rose-100 hover:bg-rose-200 text-[#802319] border border-rose-300 font-extrabold px-2.5 py-1 rounded-xl text-[11px] flex items-center gap-1 transition-all shadow-sm"
+                              title="Quitar este producto del cobro antes de pagar"
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>[- Quitar]</span>
                             </button>
-
-                            {/* Dropdown Menú Contextual [ ⋮ ] */}
-                            {openLineMenuIndex === idx && (
-                              <div className="absolute right-0 top-7 z-20 bg-slate-950 border border-slate-700 rounded-xl p-1.5 shadow-2xl space-y-1 w-44">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRemovingItemIndex(idx);
-                                    setWrittenReason('');
-                                    setManagerPin('');
-                                    setRemoveError('');
-                                  }}
-                                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-rose-400 hover:bg-rose-950/40 text-[11px] font-bold flex items-center gap-1.5"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" /> Quitar de la cuenta
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
-                {/* Desglose de Totales Reales DB */}
-                <div className="mt-4 p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1 text-xs font-mono">
-                  <div className="flex justify-between text-slate-400">
+                {/* Desglose Fiscal & Totales Reales */}
+                <div className="mt-4 p-3.5 bg-[#fffdf9] rounded-2xl border border-[#dac8b3] space-y-1 text-xs font-mono shadow-sm">
+                  <div className="flex justify-between text-[#3d2717] font-semibold">
                     <span>Subtotal Activo:</span>
                     <span>₡{selectedOrder.subtotal.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-slate-400">
+                  <div className="flex justify-between text-[#3d2717] font-semibold">
                     <span>IVA (13%):</span>
                     <span>₡{selectedOrder.tax_iva.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-slate-400">
-                    <span>Servicio (10%):</span>
+                  <div className="flex justify-between text-[#3d2717] font-semibold">
+                    <span>Servicio Mesa (10%):</span>
                     <span>₡{selectedOrder.tax_service.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-amber-400 text-base font-extrabold pt-1 border-t border-slate-800">
-                    <span>Total a Cobrar:</span>
-                    <span>₡{selectedOrder.total.toLocaleString()}</span>
+                  <div className="flex justify-between text-[#5d402b] text-base font-extrabold pt-1.5 border-t border-[#dac8b3]">
+                    <span>TOTAL A COBRAR:</span>
+                    <span className="text-lg">₡{selectedOrder.total.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Formulario de Cobro */}
-              <div className="space-y-3 pt-3 border-t border-slate-800">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Formulario Completo de Registro de Pago (Efectivo, Tarjeta, SINPE) */}
+              <div className="space-y-3 pt-3 border-t border-[#dac8b3]">
+                {paymentError && (
+                  <div className="bg-rose-100 border border-rose-300 p-2.5 rounded-xl text-xs text-[#802319] font-bold flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-[#802319]" />
+                    <span>{paymentError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* Selector Método de Pago */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Método de Pago</label>
+                    <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Método de Pago *</label>
                     <select
                       value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200"
+                      onChange={(e) => {
+                        setPaymentMethod(e.target.value);
+                        setPaymentError('');
+                        if (e.target.value === 'Efectivo') {
+                          setAmountPaidInput(selectedOrder.total.toString());
+                        }
+                      }}
+                      className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold focus:outline-none focus:border-[#5d402b]"
                     >
-                      <option value="Tarjeta POS">Tarjeta POS / Datafono</option>
                       <option value="Efectivo">Efectivo Colones</option>
+                      <option value="Tarjeta POS">Tarjeta POS / Datafono</option>
                       <option value="SINPE Movil">SINPE Móvil</option>
-                      <option value="Dolares">Dólares USD</option>
+                      <option value="Otro">Otro Método</option>
                     </select>
                   </div>
 
+                  {/* Campos Dinámicos según Método de Pago */}
+                  {paymentMethod === 'Efectivo' ? (
+                    <>
+                      <div>
+                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Monto Recibido *</label>
+                        <input
+                          type="number"
+                          value={amountPaidInput}
+                          onChange={(e) => setAmountPaidInput(e.target.value)}
+                          placeholder="Monto entregado..."
+                          className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold font-mono focus:outline-none focus:border-[#5d402b]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Cambio / Vuelto</label>
+                        <div className={`w-full border rounded-xl px-3 py-2 text-xs font-mono font-extrabold flex items-center justify-between ${
+                          calculatedChange >= 0 ? 'bg-[#46593a]/15 text-[#1f2d17] border-[#46593a]/40' : 'bg-rose-100 text-[#802319] border-rose-300'
+                        }`}>
+                          <span>₡{calculatedChange.toLocaleString()}</span>
+                          <span className="text-[10px]">Vuelto</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : paymentMethod === 'Tarjeta POS' ? (
+                    <>
+                      <div>
+                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Tipo Tarjeta</label>
+                        <select
+                          value={cardType}
+                          onChange={(e) => setCardType(e.target.value)}
+                          className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold"
+                        >
+                          <option value="Visa">Visa</option>
+                          <option value="Mastercard">Mastercard</option>
+                          <option value="AMEX">American Express</option>
+                          <option value="BAC">BAC Credomatic</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Voucher / Referencia *</label>
+                        <input
+                          type="text"
+                          value={referenceNumber}
+                          onChange={(e) => setReferenceNumber(e.target.value)}
+                          placeholder="Nº Autorización..."
+                          className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold font-mono"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Comprobante SINPE *</label>
+                        <input
+                          type="text"
+                          value={referenceNumber}
+                          onChange={(e) => setReferenceNumber(e.target.value)}
+                          placeholder="Nº Referencia SINPE..."
+                          className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Estado Pago</label>
+                        <div className="w-full bg-[#46593a]/15 text-[#1f2d17] border border-[#46593a]/40 rounded-xl px-3 py-2 text-xs font-bold font-mono">
+                          Confirmado
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Datos de Factura Electrónica */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Nombre Cliente Factura</label>
+                    <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Cliente Factura</label>
                     <input
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200"
+                      placeholder="Nombre o Razón Social..."
+                      className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Cédula / Correo</label>
+                    <input
+                      type="text"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      placeholder="correo@cliente.cr"
+                      className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold"
                     />
                   </div>
                 </div>
 
+                {/* Botón Principal de Confirmación */}
                 <button
                   onClick={handleConfirmPayment}
                   disabled={isProcessing}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs py-3.5 rounded-2xl shadow-xl transition-all"
+                  className="w-full bg-[#5d402b] hover:bg-[#483120] text-[#fffdf9] font-extrabold text-xs py-3.5 rounded-2xl shadow-xl transition-all border border-[#3e2718] flex items-center justify-center gap-2"
                 >
-                  {isProcessing ? 'Procesando Pago & Factura v4.3...' : `CONFIRMAR COBRO Y LIBERAR MESA (₡${selectedOrder.total.toLocaleString()})`}
+                  {isProcessing ? (
+                    'Procesando Pago & Factura Automática...'
+                  ) : (
+                    <>
+                      <span>CONFIRMAR PAGO & EMITIR FACTURA (₡{selectedOrder.total.toLocaleString()})</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </div>
             </>
           ) : (
-            <div className="py-24 text-center text-slate-500 italic text-xs">
-              Selecciona una cuenta pendiente a la izquierda para procesar el cobro.
+            <div className="py-24 text-center text-[#3d2717]">
+              <FileText className="w-12 h-12 mx-auto text-[#5d402b] mb-2 opacity-60" />
+              <p className="font-bold text-sm text-[#1f1209]">Selecciona una cuenta pendiente de la izquierda</p>
+              <p className="text-xs text-[#3d2717]">Podrás revisar productos, quitar ítems y procesar el cobro.</p>
             </div>
           )}
         </div>
+
       </div>
 
-      {/* Modal para Quitar Producto desde Caja con Motivo Escrito Obligatorio */}
-      {removingItemIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel border border-slate-700 w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-rose-400" /> Quitar Producto de la Cuenta (Caja)
+      {/* Modal para Quitar Producto con Motivo Escrito y PIN */}
+      {removingItemIndex !== null && selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
+            <h3 className="font-heading font-extrabold text-base text-[#1f1209] flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-[#802319]" /> Quitar Producto de la Cuenta
             </h3>
 
-            <form onSubmit={handleConfirmRemoveFromCaja} className="space-y-3">
+            <p className="text-xs text-[#3d2717] font-semibold">
+              Producto: <strong className="text-[#1f1209]">{selectedOrder.items[removingItemIndex]?.product_name}</strong>
+            </p>
+
+            <form onSubmit={handleConfirmRemoveItem} className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Motivo del Retiro Escrito Libremente (Mínimo 8 caracteres) *
+                <label className="text-xs font-extrabold text-[#1f1209] block mb-1 font-mono">
+                  Explicación del Motivo * (Mínimo 8 caracteres)
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Ej. El producto no fue entregado a la mesa del cliente..."
+                  placeholder="Ej. El cliente decidió no consumir la entrada..."
                   value={writtenReason}
                   onChange={(e) => setWrittenReason(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold focus:outline-none focus:border-[#5d402b]"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  PIN de Autorización de Gerencia (9999)
+                <label className="text-xs font-extrabold text-[#1f1209] block mb-1 font-mono">
+                  PIN de Autorización (PIN: 9999 si ya se preparó)
                 </label>
                 <input
                   type="password"
@@ -392,19 +540,27 @@ export default function CajeroView() {
                   placeholder="PIN Gerente (9999)"
                   value={managerPin}
                   onChange={(e) => setManagerPin(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-amber-400"
+                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-center text-xs font-mono font-bold text-[#5d402b]"
                 />
               </div>
 
-              {removeError && (
-                <div className="bg-rose-500/20 border border-rose-500/40 p-2.5 rounded-xl text-xs text-rose-300 font-bold">
-                  {removeError}
-                </div>
-              )}
+              {removeError && <p className="text-xs text-[#802319] font-bold">{removeError}</p>}
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setRemovingItemIndex(null)} className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl">Confirmar Retiro & Recalcular</button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-[#dac8b3]">
+                <button
+                  type="button"
+                  onClick={() => setRemovingItemIndex(null)}
+                  className="px-4 py-2 bg-[#fffdf9] border border-[#dac8b3] text-[#3d2717] text-xs font-bold rounded-xl hover:bg-[#f5efe6]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isProcessing}
+                  className="px-4 py-2 bg-[#802319] hover:bg-[#601912] text-[#fffdf9] font-bold text-xs rounded-xl shadow-md"
+                >
+                  Confirmar Retiro & Recalcular
+                </button>
               </div>
             </form>
           </div>
