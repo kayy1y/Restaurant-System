@@ -1,6 +1,6 @@
 /**
- * Servicio del Menú La Vid Steakhouse 2025 GastroFlow OS
- * Permite consultar platillos, gestionar disponibilidad y crear nuevos productos desde Administración con recetas y personalizaciones.
+ * Servicio de Gestión del Menú La Vid Steak House & Pizza
+ * Administración 100% Completa: Productos, Precios, Categorías, Especiales del Día, Auditoría y Modificadores
  */
 
 import { dbGetAll, dbGet, dbPut, dbDelete } from './db.js';
@@ -12,14 +12,17 @@ export async function getMenuCategories() {
 
 /**
  * Obtener Productos del Menú
- * @param {boolean} includeDrafts - Si es true (Admin), incluye productos en estado 'BORRADOR' o 'INACTIVO'.
+ * @param {boolean} includeHidden - Si es true (Admin), incluye productos agotados u ocultos.
  */
-export async function getMenuProducts(includeDrafts = false) {
+export async function getMenuProducts(includeHidden = false) {
   const prods = await dbGetAll('menu_products');
-  if (includeDrafts) return prods;
-  return prods.filter(p => p.available !== false && p.status !== 'BORRADOR' && p.status !== 'INACTIVO');
+  if (includeHidden) return prods;
+  return prods.filter(p => p.status !== 'oculto' && p.status !== 'INACTIVO');
 }
 
+/**
+ * Comprobar Disponibilidad de Insumos de Receta
+ */
 export async function checkProductStockAvailability(productId, requestedQty = 1) {
   const recipeData = await getProductRecipe(productId);
   if (!recipeData.hasRecipe || recipeData.ingredients.length === 0) {
@@ -45,70 +48,155 @@ export async function checkProductStockAvailability(productId, requestedQty = 1)
 }
 
 /**
- * Crear o Guardar Producto del Menú desde Administración General (Formulario Multipaso)
+ * Guardar / Editar Producto del Menú con Seguridad & Registro de Auditoría
  */
-export async function createAdminMenuProduct(productData, userRole) {
-  if (userRole !== 'ADMINISTRADOR' && userRole !== 'gerente') {
-    throw new Error('Solo el Administrador puede agregar o modificar productos del menú.');
+export async function createAdminMenuProduct(productData, userRole, adminName = 'Administrador') {
+  if (userRole !== 'ADMINISTRADOR' && userRole !== 'ADMIN' && userRole !== 'gerente') {
+    throw new Error('Solo el Administrador General puede agregar o modificar productos del menú.');
   }
 
-  // Validaciones del Producto
   if (!productData.name || productData.name.trim().length < 2) {
-    throw new Error('El nombre del producto es obligatorio (mínimo 2 caracteres).');
+    throw new Error('El nombre del producto es obligatorio.');
   }
   if (!productData.base_price || parseFloat(productData.base_price) <= 0) {
-    throw new Error('El precio base debe ser un número mayor a cero.');
+    throw new Error('El precio del producto debe ser mayor a cero.');
   }
   if (!productData.category_id) {
-    throw new Error('Debe seleccionar una categoría válida.');
-  }
-
-  // Validar SKU duplicado
-  const existingProds = await dbGetAll('menu_products');
-  if (productData.sku_code) {
-    const duplicate = existingProds.find(p => p.sku_code === productData.sku_code && p.id !== productData.id);
-    if (duplicate) {
-      throw new Error(`El código SKU '${productData.sku_code}' ya está en uso por ${duplicate.name}.`);
-    }
+    throw new Error('Debe seleccionar una categoría para el producto.');
   }
 
   const now = new Date().toISOString();
   const prodId = productData.id || `prod-${Date.now().toString().slice(-6)}`;
+  const oldProduct = productData.id ? await dbGet('menu_products', productData.id) : null;
 
   const newProduct = {
     id: prodId,
     sku_code: productData.sku_code || `SKU-${Date.now().toString().slice(-4)}`,
     name: productData.name.trim(),
+    name_en: productData.name_en || '',
     description: productData.description || '',
+    description_en: productData.description_en || '',
     category_id: productData.category_id,
     base_price: parseFloat(productData.base_price),
-    tax_rate: productData.tax_rate !== undefined ? parseFloat(productData.tax_rate) : 0.13,
-    service_rate: productData.service_rate !== undefined ? parseFloat(productData.service_rate) : 0.10,
-    preparation_area: productData.preparation_area || 'cocina_caliente',
-    prep_time_minutes: productData.prep_time_minutes || 12,
-    available: productData.available !== undefined ? productData.available : true,
-    status: productData.status || 'ACTIVO', // ACTIVO, BORRADOR, AGOTADO, INACTIVO
+    grammage: productData.grammage || '',
+    spicy_level: productData.spicy_level !== undefined ? parseInt(productData.spicy_level) : 0,
     is_gluten_free: !!productData.is_gluten_free,
-    is_spicy: !!productData.is_spicy,
-    has_recipe: Array.isArray(productData.ingredients) && productData.ingredients.length > 0,
-    updated_at: now
+    available: productData.status !== 'oculto' && productData.status !== 'agotado',
+    status: productData.status || 'disponible', // disponible, agotado, oculto
+    is_daily_special: !!productData.is_daily_special,
+    allows_modifiers: productData.allows_modifiers !== undefined ? productData.allows_modifiers : true,
+    image_url: productData.image_url || '',
+    updated_at: now,
+    created_at: oldProduct?.created_at || now
   };
 
   await dbPut('menu_products', newProduct);
 
-  // Si incluye ingredientes de receta
-  if (Array.isArray(productData.ingredients) && productData.ingredients.length > 0) {
-    await saveProductRecipe({
-      productId: prodId,
-      ingredients: productData.ingredients
-    }, userRole);
-  }
+  // Registrar en Logs de Auditoría
+  try {
+    const changeDesc = oldProduct 
+      ? `Modificado producto ${newProduct.name}: Precio ₡${oldProduct.base_price} -> ₡${newProduct.base_price}, Estado: ${newProduct.status}`
+      : `Creado nuevo producto ${newProduct.name} en categoría ${newProduct.category_id} por ₡${newProduct.base_price}`;
+
+    await dbPut('audit_logs', {
+      id: `log-menu-${Date.now()}`,
+      timestamp: now,
+      user_name: adminName,
+      user_role: userRole,
+      action: oldProduct ? 'MENU_PRODUCTO_EDITAR' : 'MENU_PRODUCTO_CREAR',
+      details: changeDesc
+    });
+  } catch (e) {}
 
   return newProduct;
 }
 
-export async function saveMenuProduct(product, userRole) {
-  return createAdminMenuProduct(product, userRole);
+export async function saveMenuProduct(product, userRole, adminName) {
+  return createAdminMenuProduct(product, userRole, adminName);
+}
+
+/**
+ * Marcar Producto como AGOTADO u OCULTO
+ */
+export async function setProductStatus(productId, newStatus, userRole, adminName = 'Administrador') {
+  if (userRole !== 'ADMINISTRADOR' && userRole !== 'ADMIN' && userRole !== 'gerente') {
+    throw new Error('Solo el Administrador General puede cambiar el estado de disponibilidad del menú.');
+  }
+
+  const prod = await dbGet('menu_products', productId);
+  if (!prod) throw new Error('Producto no encontrado.');
+
+  const oldStatus = prod.status;
+  prod.status = newStatus;
+  prod.available = newStatus === 'disponible';
+  prod.updated_at = new Date().toISOString();
+
+  await dbPut('menu_products', prod);
+
+  try {
+    await dbPut('audit_logs', {
+      id: `log-status-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      user_name: adminName,
+      user_role: userRole,
+      action: 'MENU_CAMBIO_ESTADO',
+      details: `Producto ${prod.name} cambió de estado ${oldStatus} a ${newStatus}`
+    });
+  } catch (e) {}
+
+  return prod;
+}
+
+/**
+ * Eliminar Producto del Menú
+ */
+export async function deleteMenuProduct(productId, userRole, adminName = 'Administrador') {
+  if (userRole !== 'ADMINISTRADOR' && userRole !== 'ADMIN' && userRole !== 'gerente') {
+    throw new Error('Solo el Administrador General puede eliminar productos del menú.');
+  }
+
+  const prod = await dbGet('menu_products', productId);
+  if (!prod) return true;
+
+  await dbDelete('menu_products', productId);
+
+  try {
+    await dbPut('audit_logs', {
+      id: `log-del-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      user_name: adminName,
+      user_role: userRole,
+      action: 'MENU_PRODUCTO_ELIMINAR',
+      details: `Eliminado producto ${prod.name} (ID: ${productId})`
+    });
+  } catch (e) {}
+
+  return true;
+}
+
+/**
+ * Guardar Categoría de Menú
+ */
+export async function saveCategory(categoryData, userRole) {
+  if (userRole !== 'ADMINISTRADOR' && userRole !== 'ADMIN' && userRole !== 'gerente') {
+    throw new Error('Solo el Administrador General puede gestionar categorías.');
+  }
+
+  if (!categoryData.name || !categoryData.name.trim()) {
+    throw new Error('El nombre de la categoría es obligatorio.');
+  }
+
+  const catId = categoryData.id || `cat-${Date.now().toString().slice(-6)}`;
+  const category = {
+    id: catId,
+    name: categoryData.name.trim(),
+    description: categoryData.description || '',
+    order: parseInt(categoryData.order) || 99,
+    updated_at: new Date().toISOString()
+  };
+
+  await dbPut('menu_categories', category);
+  return category;
 }
 
 export async function getProductRecipe(productId) {
@@ -124,7 +212,7 @@ export async function getProductRecipe(productId) {
 }
 
 export async function saveProductRecipe({ productId, ingredients }, userRole) {
-  if (userRole !== 'ADMINISTRADOR' && userRole !== 'gerente') {
+  if (userRole !== 'ADMINISTRADOR' && userRole !== 'ADMIN' && userRole !== 'gerente') {
     throw new Error('Solo el Administrador puede editar recetas de insumos.');
   }
 

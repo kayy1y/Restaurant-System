@@ -3,7 +3,7 @@
  * Maneja login por PIN corto (Laura 1234), validación de permisos DB y sesiones.
  */
 
-import { dbGetAll, dbGet, dbPut, seedUnifiedDatabase } from './db';
+import { dbGetAll, dbGet, dbPut, seedUnifiedDatabase } from './db.js';
 
 let activeSession = null;
 

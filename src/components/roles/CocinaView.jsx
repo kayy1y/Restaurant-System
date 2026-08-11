@@ -105,23 +105,23 @@ export default function CocinaView() {
       {/* Grid de Tickets de Comanda KDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {comandas.length === 0 ? (
-          <div className="col-span-full py-16 text-center glass-panel rounded-3xl border border-slate-800 text-slate-400">
-            <ChefHat className="w-12 h-12 mx-auto text-slate-600 mb-2" />
-            <p className="font-bold text-slate-300 text-sm">No hay comandas pendientes en cocina</p>
-            <p className="text-xs text-slate-500">Todas las estaciones están al día.</p>
+          <div className="col-span-full py-16 text-center glass-panel rounded-3xl border border-[#dac8b3] bg-[#faf6ee] text-[#3d2717]">
+            <ChefHat className="w-12 h-12 mx-auto text-[#5d402b] mb-2" />
+            <p className="font-bold text-[#1f1209] text-sm">No hay comandas pendientes en cocina</p>
+            <p className="text-xs text-[#3d2717] font-semibold">Todas las estaciones están al día.</p>
           </div>
         ) : (
           comandas.map(cmd => (
-            <div key={cmd.id} className="glass-card rounded-2xl border border-slate-800 overflow-hidden flex flex-col justify-between shadow-xl">
-              <div className="bg-slate-900/90 border-b border-slate-800 p-4 flex justify-between items-center">
+            <div key={cmd.id} className="glass-card rounded-3xl border border-[#dac8b3] bg-[#fffdf9] overflow-hidden flex flex-col justify-between shadow-md">
+              <div className="bg-[#2c1d13] text-[#f7f2e9] border-b border-[#422c1d] p-4 flex justify-between items-center">
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-100">{cmd.table_name}</h3>
-                  <p className="text-xs text-slate-400">Salonero: {cmd.waiter_name}</p>
+                  <h3 className="font-extrabold text-base text-[#f7f2e9]">{cmd.table_name}</h3>
+                  <p className="text-xs text-[#c4b1a1]">Salonero: {cmd.waiter_name}</p>
                 </div>
                 <span className={`text-xs font-bold font-mono px-2.5 py-1 rounded-lg border ${
-                  cmd.status === 'Nuevo' || cmd.status?.includes('Nuevo') ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse' :
-                  cmd.status === 'En preparación' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
-                  'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  cmd.status === 'Nuevo' || cmd.status?.includes('Nuevo') ? 'bg-rose-900/60 text-rose-200 border-rose-600 animate-pulse' :
+                  cmd.status === 'En preparación' ? 'bg-[#c86414]/30 text-[#f7f2e9] border-[#c86414]' :
+                  'bg-[#46593a]/40 text-[#d4e6c8] border-[#46593a]'
                 }`}>
                   {cmd.status}
                 </span>
@@ -129,14 +129,14 @@ export default function CocinaView() {
 
               <div className="p-4 space-y-2.5">
                 {cmd.items.map((i, idx) => (
-                  <div key={idx} className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1.5">
+                  <div key={idx} className="bg-[#faf6ee] p-3 rounded-2xl border border-[#dac8b3] space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <p className="font-bold text-sm text-slate-100">{i.quantity}x {i.product_name}</p>
+                      <p className="font-bold text-sm text-[#1f1209]">{i.quantity}x {i.product_name}</p>
                     </div>
 
                     {/* Indicación Especial Escrita */}
                     {i.notes && (
-                      <div className="bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg text-amber-300 text-xs font-mono font-bold">
+                      <div className="bg-[#5d402b]/15 border border-[#5d402b]/30 px-2.5 py-1 rounded-lg text-[#5d402b] text-xs font-mono font-extrabold">
                         ⚠️ INDICACIÓN: {i.notes.toUpperCase()}
                       </div>
                     )}

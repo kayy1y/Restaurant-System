@@ -7,7 +7,7 @@ import { LAVID_CATEGORIES, LAVID_PRODUCTS, LAVID_MODIFIERS } from '../data/lavid
 import { DEFAULT_UNITS, DEFAULT_CATEGORIES } from './inventoryDb.js';
 
 const DB_NAME = 'GastroFlow_Unified_DB';
-const DB_VERSION = 4;
+const DB_VERSION = 6;
 
 export const SYSTEM_ROLES = [
   { id: 'SALONERO', name: 'Salonero / Mesero', desc: 'Atención de mesas, pedidos y comanda' },
@@ -188,6 +188,21 @@ function openUnifiedDB() {
       if (!db.objectStoreNames.contains('audit_logs')) {
         db.createObjectStore('audit_logs', { keyPath: 'id' });
       }
+
+      if (!db.objectStoreNames.contains('user_preferences')) {
+        db.createObjectStore('user_preferences', { keyPath: 'user_id' });
+      }
+
+      if (!db.objectStoreNames.contains('restaurant_identity')) {
+        db.createObjectStore('restaurant_identity', { keyPath: 'id' });
+      }
+
+      if (!db.objectStoreNames.contains('reservations')) {
+        const resStore = db.createObjectStore('reservations', { keyPath: 'id_reserva' });
+        resStore.createIndex('id_mesa', 'id_mesa', { unique: false });
+        resStore.createIndex('fecha_hora_inicio', 'fecha_hora_inicio', { unique: false });
+        resStore.createIndex('estado', 'estado', { unique: false });
+      }
     };
 
     request.onsuccess = (event) => resolve(event.target.result);
@@ -252,19 +267,24 @@ export async function seedUnifiedDatabase() {
     for (const u of INITIAL_USERS) await dbPut('users', u);
   }
 
-  const menuCats = await dbGetAll('menu_categories');
-  if (menuCats.length === 0) {
-    for (const c of LAVID_CATEGORIES) await dbPut('menu_categories', c);
+  // Sincronizar categorías oficiales del menú La Vid
+  for (const c of LAVID_CATEGORIES) {
+    await dbPut('menu_categories', c);
   }
 
-  const menuProds = await dbGetAll('menu_products');
-  if (menuProds.length === 0) {
-    for (const p of LAVID_PRODUCTS) await dbPut('menu_products', p);
+  // Sincronizar los 47 productos oficiales del menú La Vid
+  for (const p of LAVID_PRODUCTS) {
+    const existing = await dbGet('menu_products', p.id);
+    if (!existing) {
+      await dbPut('menu_products', p);
+    } else if (!existing.custom_edited) {
+      await dbPut('menu_products', { ...p, base_price: existing.base_price || p.base_price, status: existing.status || p.status });
+    }
   }
 
-  const mods = await dbGetAll('product_modifiers');
-  if (mods.length === 0) {
-    for (const m of LAVID_MODIFIERS) await dbPut('product_modifiers', m);
+  // Sincronizar modificadores oficiales
+  for (const m of LAVID_MODIFIERS) {
+    await dbPut('product_modifiers', m);
   }
 
   const units = await dbGetAll('units_of_measure');

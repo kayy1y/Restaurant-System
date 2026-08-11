@@ -2,84 +2,158 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-/* Custom Design System & Luxury Theme */
+/* =============================================================================
+   GASTROFLOW OS - PALETA EXCLUSIVA STEAKHOUSE CÁLIDA & ELEGANTE DE LA VID
+   Color de Texto Café Intenso Profundo (#1F1209 y #3D2717) para máxima legibilidad en todas las vistas:
+   Menú, Mesas, Reservas, Facturación, Caja y Administración.
+   ============================================================================= */
+
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Outfit', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: "Times New Roman", Times, Georgia, serif;
+  --font-sans: "Times New Roman", Times, Georgia, serif;
+  --font-heading: "Times New Roman", Times, Georgia, serif;
+  --font-mono: 'JetBrains Mono', "Times New Roman", monospace;
+
+  /* Paleta Exclusiva Steakhouse */
+  --bg-main: #f5efe6;
+  --bg-surface: #faf6ee;
+  --bg-card: #fffdf9;
+  --bg-sidebar: #2c1d13;
+  --sidebar-text: #f7f2e9;
+  --primary-color: #5d402b;
+  --primary-hover: #483120;
+  --primary-text: #fefcf9;
+  --secondary-color: #d8c4a7;
+  --secondary-text: #1f1209;
+  
+  /* Color Café Intenso para Máxima Legibilidad */
+  --text-main: #1f1209;
+  --text-muted: #3d2717;
+  --border-color: #dac8b3;
+  --font-base-size: 14px;
+  --padding-density: 1rem;
+}
+
+/* Transiciones suaves y elegantes */
+body, div, section, main, header, aside, button, input, select, textarea {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease, box-shadow 0.2s ease;
 }
 
 body {
-  font-family: var(--font-sans);
-  background-color: #070a12;
-  color: #f1f5f9;
+  font-family: var(--font-serif);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-size: var(--font-base-size);
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6, .font-heading {
-  font-family: var(--font-heading);
+h1, h2, h3, h4, h5, h6, .font-heading, .font-sans {
+  font-family: var(--font-serif);
+  color: #1f1209;
+}
+
+p, span, label, td, th, input, select, textarea {
+  color: inherit;
 }
 
 .font-mono {
   font-family: var(--font-mono);
 }
 
-/* Glassmorphism & UI Panels */
+/* Paneles & Tarjetas Steakhouse Elegantes */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 20px -2px rgba(44, 29, 19, 0.08);
+  color: #1f1209;
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.45);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 10px 0 rgba(44, 29, 19, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #1f1209;
 }
 
 .glass-card:hover {
-  border-color: rgba(245, 158, 11, 0.4);
+  border-color: var(--primary-color);
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px -10px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 8px 20px -4px rgba(93, 64, 43, 0.18);
 }
 
-/* Scrollbars */
+/* Reglas de Contraste Automático de Texto Café Intenso */
+.btn-steakhouse-primary {
+  background-color: var(--primary-color);
+  color: var(--primary-text) !important;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  border-radius: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.btn-steakhouse-primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(72, 49, 32, 0.25);
+}
+
+.btn-steakhouse-secondary {
+  background-color: var(--secondary-color);
+  color: var(--secondary-text) !important;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  border-radius: 0.85rem;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.btn-steakhouse-secondary:hover {
+  background-color: #ccb696;
+}
+
+/* Estilos de Densidad de Pantalla */
+[data-density="comfortable"] .glass-panel,
+[data-density="comfortable"] .glass-card {
+  padding: 1.25rem !important;
+}
+
+[data-density="compact"] .glass-panel,
+[data-density="compact"] .glass-card {
+  padding: 0.65rem !important;
+}
+
+/* Scrollbars Amaderados Elegantes */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #080c14;
+  background: var(--bg-main);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--border-color);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--primary-color);
 }
 
 /* Animations */
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  50% { opacity: 0.65; }
 }
 
 .animate-pulse-subtle {
   animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Custom Scroll Containment & Responsive Fixes */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -88,7 +162,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   scrollbar-width: none;
 }
 
-/* Print Stylesheet for Fiscal Invoices */
+/* Impresión Factura Electrónica Costa Rica v4.3 */
 @media print {
   body * {
     visibility: hidden !important;

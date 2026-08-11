@@ -11,16 +11,20 @@ import CocinaView from './components/roles/CocinaView';
 import CajeroView from './components/roles/CajeroView';
 import AdminView from './components/roles/AdminView';
 
-// Módulos Comunes
+// Módulos Comunes & Personalización
 import InventoryDashboard from './components/inventory/InventoryDashboard';
 import InvoiceManager from './components/InvoiceManager';
 import ReturnsModal from './components/ReturnsModal';
 import GastroAIAssistant from './components/GastroAIAssistant';
 import ReportsDashboard from './components/ReportsDashboard';
 import AuditLogViewer from './components/AuditLogViewer';
+import RestaurantIdentitySettings from './components/RestaurantIdentitySettings';
+import ReservationManager from './components/ReservationManager';
 
-import { ROLES } from './data/mockData';
+import { ROLES, TABLES } from './data/mockData';
 import { seedUnifiedDatabase } from './services/db';
+import { getUserPreferences, applyThemeToDOM } from './services/themeService';
+import { updateReservationStatus } from './services/reservationService';
 
 export default function App() {
   const [activeSession, setActiveSession] = React.useState(null);
@@ -28,20 +32,27 @@ export default function App() {
   const [activeTab, setActiveTab] = React.useState('mesas');
   const [isOffline, setIsOffline] = React.useState(false);
   const [activeBranch, setActiveBranch] = React.useState('001');
+  const [isSidebarCompact, setIsSidebarCompact] = React.useState(false);
+  const [tables, setTables] = React.useState(TABLES);
 
   // Modal de Incidencia Universal
   const [showIncidentModal, setShowIncidentModal] = React.useState(false);
 
-  // Inicializar Base de Datos Unificada
+  // Inicializar Base de Datos Unificada & Cargar Tema por Defecto
   React.useEffect(() => {
     seedUnifiedDatabase().catch(err => console.error('Error seeding DB:', err));
+    getUserPreferences('global').then(prefs => applyThemeToDOM(prefs));
   }, []);
 
-  // Al autenticar empleado en la pantalla inicial
-  const handleLoginSuccess = (session) => {
+  // Al autenticar empleado en la pantalla inicial: Cargar sus preferencias personales de tema
+  const handleLoginSuccess = async (session) => {
     setActiveSession(session);
     const matchedRole = ROLES.find(r => r.id.toUpperCase() === session.user.role_id.toUpperCase()) || ROLES[0];
     setCurrentRole(matchedRole);
+
+    const userPrefs = await getUserPreferences(session.user.id);
+    applyThemeToDOM(userPrefs);
+    if (userPrefs.sidebar_style === 'compact') setIsSidebarCompact(true);
 
     if (session.user.role_id === 'SALONERO') setActiveTab('mesas');
     else if (session.user.role_id === 'COCINA') setActiveTab('cocina');
@@ -50,16 +61,33 @@ export default function App() {
   };
 
   // Selector Rápido de Trabajador (Modo Pruebas Sin Recargar Página)
-  const handleSwitchWorker = (newUser) => {
+  const handleSwitchWorker = async (newUser) => {
     const matchedRole = ROLES.find(r => r.id.toUpperCase() === newUser.role_id.toUpperCase()) || ROLES[0];
     const newSession = { user: newUser, role: matchedRole };
     setActiveSession(newSession);
     setCurrentRole(matchedRole);
 
+    const userPrefs = await getUserPreferences(newUser.id);
+    applyThemeToDOM(userPrefs);
+    if (userPrefs.sidebar_style === 'compact') setIsSidebarCompact(true);
+
     if (newUser.role_id === 'SALONERO') setActiveTab('mesas');
     else if (newUser.role_id === 'COCINA') setActiveTab('cocina');
     else if (newUser.role_id === 'CAJERO') setActiveTab('caja');
     else setActiveTab('mesas');
+  };
+
+  // Acción Sentar Cliente desde el módulo de Reservas: cambia mesa a OCUPADA y pasa a la vista POS
+  const handleSeatCustomerFromReservation = async (reservation) => {
+    try {
+      await updateReservationStatus(reservation.id_reserva, 'sentado');
+      setTables(prevTables => prevTables.map(t => 
+        t.id === reservation.id_mesa ? { ...t, status: 'ocupada' } : t
+      ));
+      setActiveTab('mesas');
+    } catch (err) {
+      console.error('Error sentando cliente:', err);
+    }
   };
 
   // Si no hay sesión iniciada, mostrar Pantalla de Login Obligatoria
@@ -70,7 +98,7 @@ export default function App() {
   const roleUpper = currentRole.id.toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex flex-col font-sans transition-colors duration-300">
       {/* Top Header */}
       <Header
         currentRole={currentRole}
@@ -82,6 +110,7 @@ export default function App() {
         setActiveBranch={setActiveBranch}
         pendingFiscalQueue={0}
         onLogout={() => setActiveSession(null)}
+        onOpenAppearance={() => setActiveTab('apariencia')}
       />
 
       {/* Main Layout: Sidebar Left, Content Right */}
@@ -90,6 +119,8 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           currentRole={currentRole}
+          isCompact={isSidebarCompact}
+          setIsCompact={setIsSidebarCompact}
         />
 
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full relative">
@@ -108,15 +139,35 @@ export default function App() {
             </button>
           </div>
 
-          {/* Renderizado Dinámico e Instantáneo de Vistas según la Sesión Activa */}
-          {roleUpper === 'SALONERO' && <SaloneroView activeSessionUser={activeSession.user} />}
-          {roleUpper === 'COCINA' && <CocinaView />}
-          {roleUpper === 'CAJERO' && (
+          {/* Renderizado de Módulos de Personalización & Configuración */}
+          {activeTab === 'identidad' && (
+            <RestaurantIdentitySettings currentRole={currentRole} />
+          )}
+
+          {/* Módulo de Reservas de Mesas */}
+          {activeTab === 'reservas' && (
+            <ReservationManager 
+              tables={tables} 
+              currentRole={currentRole} 
+              onSeatCustomer={handleSeatCustomerFromReservation} 
+            />
+          )}
+
+          {/* Renderizado Dinámico e Instantáneo de Vistas Operativas según la Sesión Activa */}
+          {activeTab !== 'identidad' && activeTab !== 'reservas' && roleUpper === 'SALONERO' && (
+            <SaloneroView activeSessionUser={activeSession.user} />
+          )}
+
+          {activeTab !== 'identidad' && activeTab !== 'reservas' && roleUpper === 'COCINA' && (
+            <CocinaView />
+          )}
+
+          {activeTab !== 'identidad' && activeTab !== 'reservas' && roleUpper === 'CAJERO' && (
             activeTab === 'facturas' ? <InvoiceManager currentRole={currentRole} invoices={[]} /> : <CajeroView />
           )}
 
           {/* Renderizado para Administrador y Navegación General */}
-          {(roleUpper === 'ADMINISTRADOR' || roleUpper === 'GERENTE' || roleUpper === 'BARRA' || roleUpper === 'INVENTARIO') && (
+          {activeTab !== 'identidad' && activeTab !== 'reservas' && (roleUpper === 'ADMINISTRADOR' || roleUpper === 'GERENTE' || roleUpper === 'BARRA' || roleUpper === 'INVENTARIO') && (
             <>
               {activeTab === 'mesas' && <SaloneroView activeSessionUser={activeSession.user} />}
               {activeTab === 'cocina' && <CocinaView />}

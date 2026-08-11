@@ -148,24 +148,24 @@ export default function CajeroView() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-[#1f1209]">
       {/* Header de Caja */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+      <div className="glass-panel p-4 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] flex flex-wrap items-center justify-between gap-3 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="bg-indigo-500/10 p-2.5 rounded-xl border border-indigo-500/30 text-indigo-400">
+          <div className="bg-[#5d402b]/15 p-2.5 rounded-2xl border border-[#5d402b]/30 text-[#5d402b]">
             <CreditCard className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="font-heading font-extrabold text-lg text-slate-100">Módulo de Caja, Cobros & Comprobantes v4.3</h2>
-            <p className="text-xs text-slate-400">Cajera: <strong className="text-indigo-300">Ana Cajera</strong> • Selección fluida y rápida de cuentas pendientes</p>
+            <h2 className="font-heading font-extrabold text-lg text-[#1f1209]">Módulo de Caja, Cobros & Comprobantes v4.3</h2>
+            <p className="text-xs text-[#3d2717] font-semibold">Cajera: <strong className="text-[#5d402b]">Ana Cajera</strong> • Selección fluida y rápida de cuentas pendientes</p>
           </div>
         </div>
 
         <button
           onClick={loadCajaData}
-          className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all"
+          className="bg-[#fffdf9] hover:bg-[#f5efe6] text-[#1f1209] border border-[#dac8b3] text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+          <RefreshCw className="w-3.5 h-3.5 text-[#5d402b]" />
           <span>Actualizar Cuentas</span>
         </button>
       </div>
@@ -173,12 +173,12 @@ export default function CajeroView() {
       {/* Grid Principal de Cobros */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         {/* Lista de Cuentas Pendientes Left */}
-        <div className="md:col-span-5 glass-panel p-4 rounded-2xl border border-slate-800 space-y-3">
-          <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Cuentas Pendientes ({orders.length})</h3>
+        <div className="md:col-span-5 glass-panel p-4 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] space-y-3 shadow-md">
+          <h3 className="font-bold text-xs text-[#3d2717] uppercase tracking-wider font-mono">Cuentas Pendientes ({orders.length})</h3>
 
           <div className="space-y-2.5 max-h-[500px] overflow-y-auto">
             {orders.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-8">No hay cuentas pendientes por cobrar.</p>
+              <p className="text-xs text-[#3d2717] italic text-center py-8">No hay cuentas pendientes por cobrar.</p>
             ) : (
               orders.map(ord => (
                 <div
@@ -186,15 +186,15 @@ export default function CajeroView() {
                   onClick={() => handleSelectOrder(ord.id)}
                   className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex justify-between items-center ${
                     selectedOrderId === ord.id 
-                      ? 'bg-indigo-500/20 border-indigo-500 text-indigo-200 ring-2 ring-indigo-500/40' 
-                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-850'
+                      ? 'bg-[#5d402b] border-[#3e2718] text-[#fffdf9] shadow-md' 
+                      : 'bg-[#fffdf9] border-[#dac8b3] text-[#1f1209] hover:bg-[#f5efe6]'
                   }`}
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-slate-100">{ord.table_name}</h4>
+                      <h4 className="font-bold text-sm">{ord.table_name}</h4>
                       {ord.status === 'ESPERANDO_CUENTA' && (
-                        <span className="bg-indigo-500/20 text-indigo-300 text-[9px] font-bold px-1.5 py-0.5 rounded border border-indigo-500/40">
+                        <span className="bg-[#c86414]/20 text-[#c86414] text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#c86414]/40">
                           Pre-cuenta Solicitada
                         </span>
                       )}

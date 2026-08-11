@@ -234,17 +234,17 @@ export default function SaloneroView({ activeSessionUser }) {
   return (
     <div className="space-y-6">
       {/* Header Vista General de Mesas para Todos los Saloneros */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+      <div className="glass-panel p-4 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] flex flex-wrap items-center justify-between gap-3 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="bg-sky-500/10 p-2.5 rounded-xl border border-sky-500/30 text-sky-400">
+          <div className="bg-[#5d402b]/15 p-2.5 rounded-2xl border border-[#5d402b]/30 text-[#5d402b]">
             <UserCheck className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading font-extrabold text-base text-slate-100 flex items-center gap-2">
+            <h2 className="font-heading font-extrabold text-base text-[#1f1209] flex items-center gap-2">
               Vista General de Mesas del Restaurante
             </h2>
-            <p className="text-xs text-slate-400">
-              Salonero Activo: <strong className="text-amber-300 font-bold">{activeUser.name}</strong> • Tarjetas consolidadas por mesa
+            <p className="text-xs text-[#3d2717] font-semibold">
+              Salonero Activo: <strong className="text-[#5d402b] font-bold">{activeUser.name}</strong> • Tarjetas consolidadas por mesa
             </p>
           </div>
         </div>
@@ -252,17 +252,17 @@ export default function SaloneroView({ activeSessionUser }) {
 
       {/* Alerta de Pedidos Listos */}
       {readyNotification && (
-        <div className="bg-emerald-500/20 border border-emerald-500/50 p-4 rounded-2xl flex items-center justify-between text-emerald-200 shadow-xl animate-bounce">
+        <div className="bg-[#46593a]/20 border border-[#46593a]/50 p-4 rounded-2xl flex items-center justify-between text-[#1f2d17] shadow-xl animate-bounce">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-6 h-6 text-[#46593a] shrink-0" />
             <div>
-              <p className="font-bold text-sm text-emerald-300">¡PLATILLO LISTO PARA ENTREGAR!</p>
-              <p className="text-xs">Mesa: <strong className="text-white">{readyNotification.tableName}</strong> • Pedido {readyNotification.orderId} listo a las {readyNotification.time}</p>
+              <p className="font-bold text-sm text-[#1f2d17]">¡PLATILLO LISTO PARA ENTREGAR!</p>
+              <p className="text-xs">Mesa: <strong className="text-[#1f1209]">{readyNotification.tableName}</strong> • Pedido {readyNotification.orderId} listo a las {readyNotification.time}</p>
             </div>
           </div>
           <button
             onClick={() => setReadyNotification(null)}
-            className="bg-emerald-500 text-slate-950 font-bold px-3.5 py-1.5 rounded-xl text-xs hover:bg-emerald-400 transition-all"
+            className="bg-[#46593a] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs hover:bg-[#34442a] transition-all shadow-sm"
           >
             Entregado a la Mesa
           </button>
@@ -278,43 +278,43 @@ export default function SaloneroView({ activeSessionUser }) {
             <div
               key={t.id}
               onClick={() => setActiveTable(t)}
-              className={`glass-card p-4 rounded-2xl border cursor-pointer flex flex-col justify-between min-h-[170px] transition-all ${
+              className={`glass-card p-4 rounded-3xl border cursor-pointer flex flex-col justify-between min-h-[170px] transition-all bg-[#fffdf9] ${
                 activeOrd 
                   ? activeOrd.account_status === 'EN_COBRO'
-                    ? 'border-purple-500/80 bg-purple-950/20 ring-1 ring-purple-500/40'
+                    ? 'border-purple-700 bg-purple-50/50 ring-1 ring-purple-500/40'
                     : activeOrd.status === 'ESPERANDO_CUENTA'
-                    ? 'border-indigo-500/80 bg-indigo-950/20 ring-1 ring-indigo-500/40'
+                    ? 'border-indigo-700 bg-indigo-50/50 ring-1 ring-indigo-500/40'
                     : activeOrd.status === 'LISTO_PARA_ENTREGA' || activeOrd.status === 'listo'
-                    ? 'border-emerald-500/80 bg-emerald-950/20 ring-1 ring-emerald-500/40 animate-pulse'
-                    : 'border-amber-500/60 bg-amber-950/15'
-                  : 'border-slate-800 hover:border-emerald-500/40'
+                    ? 'border-[#46593a] bg-[#46593a]/15 ring-1 ring-[#46593a]/40 animate-pulse'
+                    : 'border-[#5d402b] bg-[#faf6ee]'
+                  : 'border-[#dac8b3] hover:border-[#5d402b]'
               }`}
             >
               <div>
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-sm text-slate-100">{t.name} <span className="text-xs text-slate-400 font-mono">({t.capacity}p)</span></h3>
+                  <h3 className="font-bold text-sm text-[#1f1209]">{t.name} <span className="text-xs text-[#3d2717] font-mono">({t.capacity}p)</span></h3>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                     activeOrd 
                       ? activeOrd.account_status === 'EN_COBRO'
-                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                        ? 'bg-purple-100 text-purple-900 border-purple-300'
                         : activeOrd.status === 'ESPERANDO_CUENTA'
-                        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                        ? 'bg-indigo-100 text-indigo-900 border-indigo-300'
                         : activeOrd.status === 'LISTO_PARA_ENTREGA' || activeOrd.status === 'listo'
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                        : 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
-                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                        : 'bg-[#5d402b]/15 text-[#5d402b] border-[#5d402b]/30' 
+                      : 'bg-[#46593a]/20 text-[#1f2d17] border-[#46593a]/40'
                   }`}>
                     {activeOrd ? (activeOrd.account_status === 'EN_COBRO' ? 'En Cobro' : `Estado: ${activeOrd.status}`) : 'Disponible'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400">{t.zone}</p>
+                <p className="text-xs text-[#3d2717] font-bold">{t.zone}</p>
               </div>
 
               {activeOrd ? (
-                <div className="mt-3 pt-2 border-t border-slate-800/80 space-y-2">
+                <div className="mt-3 pt-2 border-t border-[#dac8b3] space-y-2">
                   <div className="text-xs font-mono flex justify-between">
-                    <span className="text-slate-300 font-sans">Responsable: <strong className="text-amber-300">{activeOrd.waiter_name}</strong></span>
-                    <strong className="text-amber-400">₡{activeOrd.total.toLocaleString()}</strong>
+                    <span className="text-[#1f1209] font-sans font-bold">Responsable: <strong className="text-[#5d402b]">{activeOrd.waiter_name}</strong></span>
+                    <strong className="text-[#5d402b] font-extrabold text-sm">₡{activeOrd.total.toLocaleString()}</strong>
                   </div>
 
                   {activeOrd.status !== 'ESPERANDO_CUENTA' && activeOrd.account_status !== 'EN_COBRO' && (
@@ -341,33 +341,33 @@ export default function SaloneroView({ activeSessionUser }) {
 
       {/* Modal de Toma / Modificación de Pedido */}
       {activeTable && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel border border-slate-700 w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center">
+        <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="bg-[#2c1d13] text-[#f7f2e9] border-b border-[#422c1d] p-4 flex justify-between items-center">
               <div>
-                <h3 className="font-bold text-base text-slate-100">Gestionar Pedido - {activeTable.name}</h3>
-                <p className="text-xs text-slate-400">Menú La Vid Steakhouse 2025 • Salonero: <strong className="text-amber-300">{activeUser.name}</strong></p>
+                <h3 className="font-heading font-extrabold text-base text-[#f7f2e9]">Gestionar Pedido - {activeTable.name}</h3>
+                <p className="text-xs text-[#c4b1a1]">Menú La Vid Steakhouse 2025 • Salonero: <strong className="text-[#d8c4a7]">{activeUser.name}</strong></p>
               </div>
-              <button onClick={() => setActiveTable(null)} className="p-2 bg-slate-800 text-slate-400 rounded-xl">✕</button>
+              <button onClick={() => setActiveTable(null)} className="p-2 bg-[#1f140d] text-[#c4b1a1] hover:text-[#f7f2e9] rounded-xl border border-[#4a3324]">✕</button>
             </div>
 
             {/* Si la mesa está en proceso de cobro en Caja, bloquear edición */}
             {orders.find(o => o.table_id === activeTable.id && o.status !== 'PAGADO')?.account_status === 'EN_COBRO' ? (
-              <div className="p-12 text-center space-y-3">
-                <Lock className="w-12 h-12 text-purple-400 mx-auto" />
-                <h4 className="font-bold text-lg text-slate-100">Esta cuenta está siendo procesada por Caja en este momento</h4>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
+              <div className="p-12 text-center space-y-3 bg-[#faf6ee]">
+                <Lock className="w-12 h-12 text-purple-700 mx-auto" />
+                <h4 className="font-heading font-extrabold text-lg text-[#1f1209]">Esta cuenta está siendo procesada por Caja en este momento</h4>
+                <p className="text-xs text-[#3d2717] font-semibold max-w-md mx-auto">
                   La cajera está emitiendo el pago y la factura. No se pueden realizar modificaciones concurrentes hasta finalizar el proceso.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-hidden">
+              <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-hidden bg-[#faf6ee]">
                 {/* Selección del Menú La Vid 2025 Left */}
-                <div className="md:col-span-7 p-4 border-r border-slate-800 overflow-y-auto space-y-3">
-                  <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="md:col-span-7 p-4 border-r border-[#dac8b3] overflow-y-auto space-y-3">
+                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                     <button
                       onClick={() => setSelectedCategory('ALL')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap ${selectedCategory === 'ALL' ? 'bg-amber-500 text-slate-950' : 'bg-slate-900 text-slate-400'}`}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === 'ALL' ? 'bg-[#5d402b] text-[#fffdf9] border border-[#3e2718]' : 'bg-[#fffdf9] text-[#3d2717] border border-[#dac8b3] hover:bg-[#f5efe6]'}`}
                     >
                       Todos
                     </button>
@@ -375,7 +375,7 @@ export default function SaloneroView({ activeSessionUser }) {
                       <button
                         key={c.id}
                         onClick={() => setSelectedCategory(c.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap ${selectedCategory === c.id ? 'bg-amber-500 text-slate-950' : 'bg-slate-900 text-slate-400'}`}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === c.id ? 'bg-[#5d402b] text-[#fffdf9] border border-[#3e2718]' : 'bg-[#fffdf9] text-[#3d2717] border border-[#dac8b3] hover:bg-[#f5efe6]'}`}
                       >
                         {c.name}
                       </button>
@@ -383,8 +383,8 @@ export default function SaloneroView({ activeSessionUser }) {
                   </div>
 
                   {stockWarning && (
-                    <div className="bg-rose-500/10 border border-rose-500/40 p-3 rounded-xl text-xs text-rose-300 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <div className="bg-rose-100 border border-rose-300 p-3 rounded-xl text-xs text-[#802319] flex items-center gap-2 font-bold">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-[#802319]" />
                       <span>No hay stock suficiente de {stockWarning.missing} para preparar {stockWarning.product}.</span>
                     </div>
                   )}
@@ -394,18 +394,18 @@ export default function SaloneroView({ activeSessionUser }) {
                       <div
                         key={prod.id}
                         onClick={() => handleOpenCustomize(prod)}
-                        className="glass-card p-3 rounded-2xl border border-slate-800 hover:border-amber-500 cursor-pointer flex flex-col justify-between"
+                        className="glass-card p-3.5 rounded-2xl border border-[#dac8b3] bg-[#fffdf9] hover:border-[#5d402b] cursor-pointer flex flex-col justify-between shadow-sm transition-all"
                       >
                         <div>
                           <div className="flex justify-between items-start">
-                            <h4 className="font-bold text-xs text-slate-100">{prod.name}</h4>
-                            {prod.is_gluten_free && <span className="bg-emerald-500/20 text-emerald-300 text-[9px] px-1 rounded">GF</span>}
+                            <h4 className="font-heading font-extrabold text-xs text-[#1f1209]">{prod.name}</h4>
+                            {prod.is_gluten_free && <span className="bg-[#46593a]/20 text-[#1f2d17] text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#46593a]/40">GF</span>}
                           </div>
-                          <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{prod.description}</p>
+                          <p className="text-[11px] text-[#3d2717] font-semibold mt-1 line-clamp-2 leading-relaxed">{prod.description}</p>
                         </div>
-                        <div className="mt-2 pt-2 border-t border-slate-800 font-mono font-extrabold text-amber-400 text-xs flex justify-between items-center">
+                        <div className="mt-3 pt-2 border-t border-[#dac8b3] font-mono font-extrabold text-[#5d402b] text-xs flex justify-between items-center">
                           <span>₡{prod.base_price.toLocaleString()}</span>
-                          <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-lg text-[10px] font-sans font-bold flex items-center gap-1">
+                          <span className="bg-[#46593a]/20 text-[#1f2d17] px-2 py-0.5 rounded-lg text-[10px] font-sans font-extrabold flex items-center gap-1">
                             <Plus className="w-3 h-3" /> Agregar
                           </span>
                         </div>
@@ -415,22 +415,22 @@ export default function SaloneroView({ activeSessionUser }) {
                 </div>
 
                 {/* Comanda en Servicio y Productos Activos Right */}
-                <div className="md:col-span-5 p-4 bg-slate-900/60 flex flex-col justify-between space-y-4">
+                <div className="md:col-span-5 p-4 bg-[#f5efe6] flex flex-col justify-between space-y-4 border-t md:border-t-0 border-[#dac8b3]">
                   <div className="space-y-3">
                     {orders.find(o => o.table_id === activeTable.id && o.status !== 'PAGADO') && (
                       <div>
-                        <h4 className="font-bold text-xs text-slate-300 mb-1">Productos Registrados en Mesa</h4>
+                        <h4 className="font-heading font-extrabold text-xs text-[#1f1209] mb-1">Productos Registrados en Mesa</h4>
                         <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
                           {orders.find(o => o.table_id === activeTable.id && o.status !== 'PAGADO')?.items.map((item, idx) => (
                             <div key={idx} className={`p-2 rounded-xl border flex justify-between items-center text-xs ${
-                              item.status === 'RETIRADO_DE_CUENTA' ? 'bg-rose-950/20 border-rose-800/60 opacity-60 line-through' : 'bg-slate-900 border-slate-800'
+                              item.status === 'RETIRADO_DE_CUENTA' ? 'bg-rose-100 border-rose-300 opacity-60 line-through text-[#802319]' : 'bg-[#fffdf9] border-[#dac8b3] text-[#1f1209]'
                             }`}>
                               <div>
-                                <p className="font-bold text-slate-200">{item.quantity}x {item.product_name}</p>
-                                {item.notes && <p className="text-[10px] text-amber-300 font-mono">[{item.notes}]</p>}
+                                <p className="font-bold text-[#1f1209]">{item.quantity}x {item.product_name}</p>
+                                {item.notes && <p className="text-[10px] text-[#5d402b] font-mono font-bold">[{item.notes}]</p>}
                                 {item.audioMemo && (
-                                  <p className="text-[10px] text-sky-400 font-bold flex items-center gap-1">
-                                    <Mic className="w-3 h-3" /> Audio adjunto ({item.audioMemo.duration}s)
+                                  <p className="text-[10px] text-sky-800 font-bold flex items-center gap-1">
+                                    <Mic className="w-3 h-3 text-sky-700" /> Audio adjunto ({item.audioMemo.duration}s)
                                   </p>
                                 )}
                               </div>
@@ -443,7 +443,7 @@ export default function SaloneroView({ activeSessionUser }) {
                                     setManagerPin('');
                                     setRemoveError('');
                                   }}
-                                  className="p-1 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 rounded-lg text-[10px] font-bold"
+                                  className="p-1 bg-rose-100 text-[#802319] hover:bg-rose-200 border border-rose-300 rounded-lg text-[10px] font-bold"
                                 >
                                   Quitar
                                 </button>
@@ -455,20 +455,20 @@ export default function SaloneroView({ activeSessionUser }) {
                     )}
 
                     <div>
-                      <h4 className="font-bold text-xs text-slate-300 mb-1">Adiciones Nuevas ({cartItems.length})</h4>
+                      <h4 className="font-heading font-extrabold text-xs text-[#1f1209] mb-1">Adiciones Nuevas ({cartItems.length})</h4>
                       <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
                         {cartItems.map((item, idx) => (
-                          <div key={idx} className="bg-slate-900 p-2 rounded-xl border border-slate-800 flex justify-between text-xs">
+                          <div key={idx} className="bg-[#fffdf9] p-2.5 rounded-2xl border border-[#dac8b3] flex justify-between text-xs shadow-sm">
                             <div>
-                              <p className="font-bold text-slate-200">{item.product_name}</p>
-                              {item.notes && <p className="text-[10px] text-amber-300 font-mono">[{item.notes}]</p>}
-                              {item.audioMemo && <p className="text-[10px] text-sky-400 font-bold">🎤 Audio Grabado ({item.audioMemo.duration}s)</p>}
-                              <p className="text-[10px] text-amber-400 font-mono">₡{(item.unit_price * item.quantity).toLocaleString()}</p>
+                              <p className="font-bold text-[#1f1209]">{item.product_name}</p>
+                              {item.notes && <p className="text-[10px] text-[#5d402b] font-mono font-bold">[{item.notes}]</p>}
+                              {item.audioMemo && <p className="text-[10px] text-sky-800 font-bold">🎤 Audio Grabado ({item.audioMemo.duration}s)</p>}
+                              <p className="text-[10px] text-[#5d402b] font-mono font-extrabold">₡{(item.unit_price * item.quantity).toLocaleString()}</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => setCartItems(cartItems.filter((_, i) => i !== idx))}
-                              className="text-rose-400 font-bold px-2"
+                              className="text-rose-700 font-bold px-2 hover:bg-rose-100 rounded-lg"
                             >
                               ✕
                             </button>
@@ -481,9 +481,9 @@ export default function SaloneroView({ activeSessionUser }) {
                   <button
                     onClick={handleConfirmOrder}
                     disabled={cartItems.length === 0 || isSubmitting}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs py-3.5 rounded-2xl transition-all shadow-lg"
+                    className="w-full bg-[#5d402b] hover:bg-[#483120] text-[#fffdf9] font-extrabold text-xs py-3.5 rounded-2xl transition-all shadow-lg border border-[#3e2718] disabled:opacity-50"
                   >
-                    {isSubmitting ? 'Procesando Transacción DB...' : 'ENVIAR A COCINA & ACTUALIZAR CUENTA'}
+                    {isSubmitting ? 'Procesando Transacción...' : 'ENVIAR A COCINA & ACTUALIZAR CUENTA'}
                   </button>
                 </div>
               </div>
@@ -494,18 +494,18 @@ export default function SaloneroView({ activeSessionUser }) {
 
       {/* Modal de Personalizaciones Coherentes + Grabador de Audio */}
       {customizingProduct && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel border border-slate-700 w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-[#dac8b3] pb-3">
               <div>
-                <h3 className="font-bold text-base text-slate-100">Personalizar {customizingProduct.name}</h3>
-                <p className="text-xs text-slate-400">Opciones específicas de {customizingProduct.category_id}</p>
+                <h3 className="font-heading font-extrabold text-base text-[#1f1209]">Personalizar {customizingProduct.name}</h3>
+                <p className="text-xs text-[#3d2717] font-semibold">Opciones e ingredientes de {customizingProduct.category_id}</p>
               </div>
-              <button onClick={() => setCustomizingProduct(null)} className="text-slate-400 font-bold">✕</button>
+              <button onClick={() => setCustomizingProduct(null)} className="text-[#3d2717] hover:text-[#1f1209] font-bold">✕</button>
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Opciones Coherentes</label>
+              <label className="text-xs font-extrabold text-[#1f1209] uppercase tracking-wider block font-mono">Opciones e Ingredientes</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {currentModifiers.map(opt => (
                   <button
@@ -518,8 +518,8 @@ export default function SaloneroView({ activeSessionUser }) {
                         setSelectedCustomizations([...selectedCustomizations, opt.id]);
                       }
                     }}
-                    className={`p-2 rounded-xl text-xs font-bold border transition-all text-left ${
-                      selectedCustomizations.includes(opt.id) ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400'
+                    className={`p-2.5 rounded-xl text-xs font-bold border transition-all text-left ${
+                      selectedCustomizations.includes(opt.id) ? 'bg-[#5d402b] text-[#fffdf9] border-[#3e2718]' : 'bg-[#fffdf9] border-[#dac8b3] text-[#1f1209] hover:bg-[#f5efe6]'
                     }`}
                   >
                     {opt.label}
@@ -528,13 +528,13 @@ export default function SaloneroView({ activeSessionUser }) {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Indicación Especial Escrita</label>
+                <label className="text-xs font-extrabold text-[#1f1209] uppercase tracking-wider block mb-1 font-mono">Indicación Especial Escrita</label>
                 <input
                   type="text"
                   placeholder="Ej. Servir salsa en recipiente separado..."
                   value={customNotes}
                   onChange={(e) => setCustomNotes(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200"
+                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold placeholder-[#3d2717]/60"
                 />
               </div>
 
@@ -544,9 +544,9 @@ export default function SaloneroView({ activeSessionUser }) {
                   <button
                     type="button"
                     onClick={() => setShowAudioRecorder(true)}
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-sky-400 border border-sky-500/30 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all"
+                    className="w-full bg-[#fffdf9] hover:bg-[#f5efe6] text-[#5d402b] border border-[#dac8b3] text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm"
                   >
-                    <Mic className="w-4 h-4" />
+                    <Mic className="w-4 h-4 text-[#5d402b]" />
                     <span>{attachedAudio ? '🔊 Audio Adjunto (Cambiar)' : '🎤 Grabar Indicación por Audio'}</span>
                   </button>
                 ) : (
@@ -561,9 +561,9 @@ export default function SaloneroView({ activeSessionUser }) {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-              <button type="button" onClick={() => setCustomizingProduct(null)} className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl">Cancelar</button>
-              <button type="button" onClick={handleConfirmCustomization} className="px-4 py-2 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl">Agregar al Pedido</button>
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#dac8b3]">
+              <button type="button" onClick={() => setCustomizingProduct(null)} className="px-4 py-2 bg-[#fffdf9] border border-[#dac8b3] text-[#3d2717] text-xs font-bold rounded-xl hover:bg-[#f5efe6]">Cancelar</button>
+              <button type="button" onClick={handleConfirmCustomization} className="px-4 py-2 bg-[#5d402b] text-[#fffdf9] font-bold text-xs rounded-xl shadow-md border border-[#3e2718]">Agregar al Pedido</button>
             </div>
           </div>
         </div>
