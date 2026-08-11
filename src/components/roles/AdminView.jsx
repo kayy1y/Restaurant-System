@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   ShieldCheck, Utensils, Package, Users, Play, CheckCircle2, 
   AlertTriangle, Lock, Edit3, Plus, Save, Sparkles, FileText, FolderPlus, 
-  Trash2, EyeOff, Check, RotateCcw, Search, Tag, Flame
+  Trash2, EyeOff, Check, RotateCcw, Search, Tag, Flame, Code
 } from 'lucide-react';
 
 import { 
@@ -14,7 +14,9 @@ import { getAllUsers, saveUser } from '../../services/authService.js';
 import { runAutomatedSystemTests } from '../../services/testRunner.js';
 import { runWorkerSwitchTestRunner } from '../../services/workerSwitchTestRunner.js';
 import { runBillingFlowTests } from '../../services/billingFlowTestRunner.js';
+import { runExternalInvoiceIntegrationTests } from '../../services/externalInvoiceIntegrationTestRunner.js';
 import { testSupabaseConnection } from '../../services/supabaseDiagnostic.js';
+import { getIntegrationConfig, saveIntegrationConfig } from '../../services/invoiceIntegrationService.js';
 
 export default function AdminView() {
   const [activeTab, setActiveTab] = React.useState('menu');
@@ -62,20 +64,32 @@ export default function AdminView() {
   const [newCatName, setNewCatName] = React.useState('');
   const [newCatDesc, setNewCatDesc] = React.useState('');
 
+  const [apiConfig, setApiConfig] = React.useState({
+    providerId: 'NOT_CONFIGURED',
+    environment: 'sandbox',
+    apiBaseUrl: 'https://api.facturacion.cr/v1',
+    apiKey: '',
+    timeout: 10000,
+    retries: 3
+  });
+  const [apiConfigSuccess, setApiConfigSuccess] = React.useState('');
+
   const loadAdminData = React.useCallback(async () => {
     try {
-      const [cData, pData, iData, uData, usrData] = await Promise.all([
+      const [cData, pData, iData, uData, usrData, cfg] = await Promise.all([
         getMenuCategories(),
         getMenuProducts(true),
         getInventoryItems(),
         getUnitsOfMeasure(),
-        getAllUsers()
+        getAllUsers(),
+        getIntegrationConfig()
       ]);
       setCategories(cData);
       setProducts(pData);
       setInventoryItems(iData);
       setUnits(uData);
       setUsers(usrData);
+      if (cfg) setApiConfig(cfg);
     } catch (err) {
       console.error('Error cargando datos de administración:', err);
     }
@@ -183,7 +197,8 @@ export default function AdminView() {
     const r1 = await runAutomatedSystemTests();
     const r2 = await runWorkerSwitchTestRunner();
     const r3 = await runBillingFlowTests();
-    setTestResults([...r1, ...r2, ...r3]);
+    const r4 = await runExternalInvoiceIntegrationTests();
+    setTestResults([...r1, ...r2, ...r3, ...r4]);
     const diag = await testSupabaseConnection();
     setSupabaseDiag(diag);
     setRunningTests(false);
@@ -631,6 +646,103 @@ export default function AdminView() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Pestaña: Configuración de Facturación Externa API */}
+      {activeTab === 'integracion_api' && (
+        <div className="glass-panel p-5 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] space-y-4 shadow-md">
+          <div className="flex justify-between items-center border-b border-[#dac8b3] pb-3">
+            <div>
+              <h3 className="font-heading font-extrabold text-base text-[#1f1209] flex items-center gap-2">
+                <Code className="w-5 h-5 text-[#5d402b]" /> Configuración de Facturación Externa por API
+              </h3>
+              <p className="text-xs text-[#3d2717]">Arquitectura desacoplada para envío automático de JSON a proveedores externos</p>
+            </div>
+            {apiConfigSuccess && (
+              <span className="bg-[#46593a]/15 text-[#1f2d17] border border-[#46593a]/40 text-xs font-bold px-3 py-1 rounded-xl">
+                {apiConfigSuccess}
+              </span>
+            )}
+          </div>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await saveIntegrationConfig(apiConfig);
+              setApiConfigSuccess('¡Configuración de integración guardada correctamente!');
+              setTimeout(() => setApiConfigSuccess(''), 3500);
+            }}
+            className="space-y-4 max-w-xl text-xs"
+          >
+            <div>
+              <label className="font-extrabold text-[#1f1209] block mb-1 font-mono">Proveedor de Facturación Externa</label>
+              <select
+                value={apiConfig.providerId || 'NOT_CONFIGURED'}
+                onChange={(e) => setApiConfig({ ...apiConfig, providerId: e.target.value })}
+                className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2.5 font-bold text-[#1f1209] focus:outline-none focus:border-[#5d402b]"
+              >
+                <option value="NOT_CONFIGURED">No configurado (Guardar JSON localmente sin fallar)</option>
+                <option value="MOCK_SANDBOX">Mock Sandbox Provider (Simulador Pruebas API)</option>
+                <option value="CR_HACIENDA_API">Costa Rica Hacienda API (Hacienda v4.3 API Directa)</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-extrabold text-[#1f1209] block mb-1 font-mono">Ambiente</label>
+                <select
+                  value={apiConfig.environment || 'sandbox'}
+                  onChange={(e) => setApiConfig({ ...apiConfig, environment: e.target.value })}
+                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 font-bold"
+                >
+                  <option value="sandbox">Sandbox / Pruebas</option>
+                  <option value="production">Producción</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-extrabold text-[#1f1209] block mb-1 font-mono">Timeout (ms)</label>
+                <input
+                  type="number"
+                  value={apiConfig.timeout || 10000}
+                  onChange={(e) => setApiConfig({ ...apiConfig, timeout: Number(e.target.value) })}
+                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-extrabold text-[#1f1209] block mb-1 font-mono">API Base Endpoint URL</label>
+              <input
+                type="text"
+                value={apiConfig.apiBaseUrl || ''}
+                onChange={(e) => setApiConfig({ ...apiConfig, apiBaseUrl: e.target.value })}
+                placeholder="https://api.proveedor.cr/v1"
+                className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 font-mono font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="font-extrabold text-[#1f1209] block mb-1 font-mono">API Key / Token de Autenticación</label>
+              <input
+                type="password"
+                value={apiConfig.apiKey || ''}
+                onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
+                placeholder="Token o Llave Secreta de API..."
+                className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 font-mono font-bold"
+              />
+            </div>
+
+            <div className="pt-2 border-t border-[#dac8b3]">
+              <button
+                type="submit"
+                className="bg-[#5d402b] hover:bg-[#483120] text-[#fffdf9] font-extrabold px-5 py-2.5 rounded-xl shadow-md border border-[#3e2718]"
+              >
+                Guardar Configuración API
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

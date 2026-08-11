@@ -25,3 +25,11 @@ yarn-error.log*
 .env.local
 .env.*
 .env.production
+
+# Certificados y Secretos Tributarios Costa Rica
+*.p12
+*.pfx
+*.pem
+certs/
+secrets/
+server/certs/

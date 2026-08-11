@@ -27,13 +27,34 @@ export async function emitFiscalDocumentV43({
 
   // 1. Verificación de Idempotencia: Bloquear emisiones duplicadas en DB
   const existingQueue = await dbGetAll('fiscal_queue');
-  const alreadyEmitted = existingQueue.find(q => q.order_id === orderId && (q.status === 'ACEPTADO' || q.status === 'PENDIENTE_CONEXION'));
+  const alreadyEmitted = existingQueue.find(q => q.order_id === orderId && (q.status === 'ACEPTADO' || q.status === 'ACCEPTED' || q.status === 'PENDIENTE_CONEXION'));
   if (alreadyEmitted) {
     return alreadyEmitted; // Retorna el documento ya generado sin duplicar
   }
 
-  // 2. Generar Clave 50 dígitos y Consecutivo v4.3
-  const fiscalHeader = generateClaveFiscalCR({
+  let backendInvoice = null;
+  try {
+    const response = await fetch('http://localhost:4000/api/hacienda/emit-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order,
+        customer: { name: customerName, identification: customerId, email: customerEmail },
+        docType
+      })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.result) {
+        backendInvoice = data.result;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend server no disponible, utilizando respaldo local:', err.message);
+  }
+
+  // 2. Generar Clave 50 dígitos y Consecutivo v4.4 (Respaldo si backend no responde)
+  const fiscalHeader = backendInvoice ? { consecutivo: backendInvoice.consecutivo, clave: backendInvoice.clave, docType: docType === "01" ? "Factura Electrónica v4.4" : "Tiquete Electrónico v4.4" } : generateClaveFiscalCR({
     idNumber: RESTAURANT_INFO.idNumber,
     branch: RESTAURANT_INFO.branch,
     terminal: RESTAURANT_INFO.terminal,
@@ -57,7 +78,7 @@ export async function emitFiscalDocumentV43({
     tax_service: order.tax_service,
     tax_iva: order.tax_iva,
     total: order.total,
-    status: isOffline ? 'PENDIENTE_CONEXION' : 'ACEPTADO',
+    status: isOffline ? 'PENDIENTE_CONEXION' : (backendInvoice ? backendInvoice.status : 'ACEPTADO'),
     rejection_reason: isOffline ? 'Sin conexión a Internet. Guardado en cola de contingencia.' : null,
     created_at: now,
     updated_at: now,

@@ -1,17 +1,22 @@
 import React from 'react';
 import { 
-  FileText, Printer, Code, CheckCircle2, Search, X, 
-  Store, Calendar, Clock, User, CreditCard, DollarSign, ChevronRight
+  FileText, Printer, Code, CheckCircle2, Search, X, Download, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { getFiscalQueue } from '../services/fiscalService.js';
 import { RESTAURANT_INFO } from '../data/mockData.js';
 import { liveSync } from '../services/liveSync.js';
+import { 
+  getIntegrationRecordByInvoiceId, 
+  retryInvoiceIntegration 
+} from '../services/invoiceIntegrationService.js';
 
 export default function InvoiceManager({ currentRole }) {
   const [invoices, setInvoices] = React.useState([]);
   const [selectedInvoice, setSelectedInvoice] = React.useState(null);
-  const [xmlModalInvoice, setXmlModalInvoice] = React.useState(null);
+  const [selectedIntegration, setSelectedIntegration] = React.useState(null);
+  const [jsonPayloadModal, setJsonPayloadModal] = React.useState(null);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [isRetrying, setIsRetrying] = React.useState(false);
 
   const loadInvoices = React.useCallback(async () => {
     try {
@@ -25,17 +30,18 @@ export default function InvoiceManager({ currentRole }) {
   React.useEffect(() => {
     loadInvoices();
 
-    // Sincronización en tiempo real al emitir facturas
     let unsub1 = () => {};
     let unsub2 = () => {};
+    let unsub3 = () => {};
 
     try {
       if (liveSync && typeof liveSync.subscribe === 'function') {
-        unsub1 = liveSync.subscribe('FISCAL_UPDATED', () => {
-          loadInvoices();
-        });
-
-        unsub2 = liveSync.subscribe('PAYMENT_COMPLETED', () => {
+        unsub1 = liveSync.subscribe('FISCAL_UPDATED', () => loadInvoices());
+        unsub2 = liveSync.subscribe('PAYMENT_COMPLETED', () => loadInvoices());
+        unsub3 = liveSync.subscribe('INVOICE_INTEGRATION_UPDATED', async (record) => {
+          if (selectedInvoice && (selectedInvoice.id === record.invoice_id || selectedInvoice.consecutivo === record.invoice_number)) {
+            setSelectedIntegration(record);
+          }
           loadInvoices();
         });
       }
@@ -46,8 +52,47 @@ export default function InvoiceManager({ currentRole }) {
     return () => {
       if (typeof unsub1 === 'function') unsub1();
       if (typeof unsub2 === 'function') unsub2();
+      if (typeof unsub3 === 'function') unsub3();
     };
-  }, [loadInvoices]);
+  }, [loadInvoices, selectedInvoice]);
+
+  const handleOpenInvoiceModal = async (inv) => {
+    setSelectedInvoice(inv);
+    try {
+      const record = await getIntegrationRecordByInvoiceId(inv.id || inv.consecutivo);
+      setSelectedIntegration(record || null);
+    } catch (err) {
+      setSelectedIntegration(null);
+    }
+  };
+
+  const handleRetryIntegration = async (invoiceId) => {
+    setIsRetrying(true);
+    try {
+      const updated = await retryInvoiceIntegration(invoiceId);
+      setSelectedIntegration(updated);
+      alert(`Reintento de envío procesado: Estado ${updated.status} (Código: ${updated.response_code || '200'})`);
+    } catch (err) {
+      alert('Error en reintento: ' + err.message);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleDownloadJSON = (payload, filename) => {
+    try {
+      const jsonString = JSON.stringify(payload, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'factura_payload.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Error descargando JSON: ' + err.message);
+    }
+  };
 
   const filteredInvoices = invoices.filter(inv => 
     (inv.clave && inv.clave.includes(searchTerm)) || 
@@ -58,7 +103,7 @@ export default function InvoiceManager({ currentRole }) {
   );
 
   const handlePrintPDF = (inv) => {
-    setSelectedInvoice(inv);
+    handleOpenInvoiceModal(inv);
     setTimeout(() => {
       window.print();
     }, 300);
@@ -74,7 +119,7 @@ export default function InvoiceManager({ currentRole }) {
           </div>
           <div>
             <h2 className="font-heading font-extrabold text-base text-[#1f1209]">Histórico de Facturas & Comprobantes Fiscales</h2>
-            <p className="text-xs text-[#3d2717] font-semibold">Registro inmutable de facturas pagadas de La Vid Steak House & Pizza</p>
+            <p className="text-xs text-[#3d2717] font-semibold">Registro inmutable de facturas e integración API externa v4.3</p>
           </div>
         </div>
 
@@ -101,7 +146,7 @@ export default function InvoiceManager({ currentRole }) {
                 <th className="p-3.5">Cliente / Datos</th>
                 <th className="p-3.5">Método Pago</th>
                 <th className="p-3.5 text-right">Monto Total</th>
-                <th className="p-3.5 text-center">Estado</th>
+                <th className="p-3.5 text-center">Estado Hacienda</th>
                 <th className="p-3.5 text-center">Acciones</th>
               </tr>
             </thead>
@@ -114,11 +159,9 @@ export default function InvoiceManager({ currentRole }) {
                 </tr>
               ) : (
                 filteredInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-[#f5efe6] transition-colors cursor-pointer" onClick={() => setSelectedInvoice(inv)}>
+                  <tr key={inv.id} className="hover:bg-[#f5efe6] transition-colors cursor-pointer" onClick={() => handleOpenInvoiceModal(inv)}>
                     <td className="p-3.5">
-                      <div className="font-bold text-[#1f1209] flex items-center gap-1">
-                        <span>{inv.consecutivo}</span>
-                      </div>
+                      <div className="font-bold text-[#1f1209]">{inv.consecutivo}</div>
                       <div className="font-mono text-[10px] text-[#3d2717]">
                         {new Date(inv.created_at).toLocaleString('es-CR')}
                       </div>
@@ -146,9 +189,9 @@ export default function InvoiceManager({ currentRole }) {
                     <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1.5">
                         <button
-                          onClick={() => setSelectedInvoice(inv)}
+                          onClick={() => handleOpenInvoiceModal(inv)}
                           className="px-2 py-1 rounded-lg bg-[#5d402b] text-[#fffdf9] font-bold text-[11px] hover:bg-[#483120]"
-                          title="Ver detalle de factura"
+                          title="Ver detalle de factura e integración API"
                         >
                           Ver
                         </button>
@@ -169,7 +212,7 @@ export default function InvoiceManager({ currentRole }) {
         </div>
       </div>
 
-      {/* MODAL DETALLE COMPLETO DE FACTURA IMPRIMIBLE */}
+      {/* MODAL DETALLE COMPLETO DE FACTURA IMPRIMIBLE E INTEGRACIÓN API */}
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
           <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl space-y-4 max-h-[92vh] flex flex-col justify-between">
@@ -188,7 +231,7 @@ export default function InvoiceManager({ currentRole }) {
                   <Printer className="w-4 h-4" /> Imprimir Factura
                 </button>
                 <button
-                  onClick={() => setSelectedInvoice(null)}
+                  onClick={() => { setSelectedInvoice(null); setSelectedIntegration(null); }}
                   className="p-1.5 bg-[#1f140d] text-[#c4b1a1] hover:text-[#f7f2e9] rounded-xl border border-[#4a3324]"
                 >
                   <X className="w-5 h-5" />

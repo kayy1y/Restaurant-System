@@ -8,6 +8,7 @@ import { dbGet, dbPut, dbGetAll } from './db.js';
 import { emitFiscalDocumentV43 } from './fiscalService.js';
 import { liveSync } from './liveSync.js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
+import { processExternalInvoiceIntegration } from './invoiceIntegrationService.js';
 
 // Bloqueo de Idempotencia en Memoria para Evitar Cobros Duplicados por Doble Clic
 const inFlightPayments = new Set();
@@ -158,6 +159,18 @@ export async function processOrderPayment({
 
     await dbPut('fiscal_queue', updatedFiscalDoc);
 
+    // 8. Generar Automáticamente JSON Normalizado & Registro de Integración API Externa
+    let integrationRecord = null;
+    try {
+      integrationRecord = await processExternalInvoiceIntegration({
+        order: updatedOrder,
+        payment: paymentRecord,
+        fiscalDoc: updatedFiscalDoc
+      });
+    } catch (intErr) {
+      console.error('Notificación de integración API externa:', intErr.message);
+    }
+
     // Sync con Supabase si está activo
     if (isSupabaseConfigured && supabase) {
       try {
@@ -202,6 +215,7 @@ export async function processOrderPayment({
       order: updatedOrder,
       payment: paymentRecord,
       invoice: updatedFiscalDoc,
+      integration: integrationRecord,
       change: calculatedChange
     };
   } finally {

@@ -7,7 +7,7 @@ import { LAVID_CATEGORIES, LAVID_PRODUCTS, LAVID_MODIFIERS } from '../data/lavid
 import { DEFAULT_UNITS, DEFAULT_CATEGORIES } from './inventoryDb.js';
 
 const DB_NAME = 'GastroFlow_Unified_DB';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 export const SYSTEM_ROLES = [
   { id: 'SALONERO', name: 'Salonero / Mesero', desc: 'Atención de mesas, pedidos y comanda' },
@@ -207,6 +207,17 @@ function openUnifiedDB() {
       if (!db.objectStoreNames.contains('payments')) {
         const pStore = db.createObjectStore('payments', { keyPath: 'id' });
         pStore.createIndex('order_id', 'order_id', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains('invoice_integrations')) {
+        const iiStore = db.createObjectStore('invoice_integrations', { keyPath: 'id' });
+        iiStore.createIndex('invoice_id', 'invoice_id', { unique: false });
+        iiStore.createIndex('status', 'status', { unique: false });
+        iiStore.createIndex('idempotency_key', 'idempotency_key', { unique: true });
+      }
+
+      if (!db.objectStoreNames.contains('integration_config')) {
+        db.createObjectStore('integration_config', { keyPath: 'id' });
       }
     };
 
