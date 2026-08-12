@@ -8,7 +8,7 @@ import {
 import { 
   getAllReservations, saveReservation, cancelReservation, updateReservationStatus, 
   getAvailableTablesForTimeSlot, RESERVATION_STATUSES, ESTIMATED_DURATIONS,
-  subscribeToReservations, getCostaRicaDateString
+  subscribeToReservations, getCostaRicaDateString, updateReservationTable
 } from '../services/reservationService.js';
 import { liveSync } from '../services/liveSync.js';
 
@@ -90,6 +90,17 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
       });
     }
   }, [showModal, form.fecha, form.hora, form.duracion_minutos, form.cantidad_personas, editingRes, tables]);
+
+  const handleAssignTable = async (resId, newTableId) => {
+    try {
+      await updateReservationTable(resId, newTableId);
+      await loadData();
+      setToastMsg('Mesa asignada/actualizada correctamente en Supabase.');
+      setTimeout(() => setToastMsg(''), 3500);
+    } catch (err) {
+      alert('Error asignando mesa: ' + err.message);
+    }
+  };
 
   const handleOpenNewModal = () => {
     setEditingRes(null);
@@ -318,9 +329,24 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
                     </div>
 
                     <div className="bg-[#faf6ee] p-3 rounded-2xl border border-[#dac8b3] space-y-1.5 text-xs text-[#231710]">
-                      <div className="flex justify-between">
-                        <span className="text-[#6e5a4b]">Mesa Asignada:</span>
-                        <span className="font-bold text-[#5d402b]">{tableObj?.name || res.id_mesa} ({res.cantidad_personas} personas)</span>
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="text-[#6e5a4b] font-bold">Mesa Asignada:</span>
+                        <select
+                          value={res.id_mesa || ''}
+                          onChange={(e) => handleAssignTable(res.id_reserva, e.target.value)}
+                          className="bg-[#fffdf9] border border-[#dac8b3] rounded-lg px-2 py-0.5 text-xs font-extrabold text-[#5d402b] cursor-pointer focus:outline-none focus:border-[#5d402b]"
+                          title="Seleccionar / Reasignar Mesa"
+                        >
+                          {tables.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.name} ({t.zone} - {t.capacity}p)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex justify-between items-center font-mono text-[11px] text-[#6e5a4b]">
+                        <span>Comensales:</span>
+                        <span className="font-bold text-[#231710]">{res.cantidad_personas} personas</span>
                       </div>
                       <div className="flex justify-between font-mono">
                         <span className="text-[#6e5a4b]">Horario:</span>

@@ -85,6 +85,14 @@ export function mapSupabaseToGastroFlow(row) {
   if (statusLower === 'cancelled') statusLower = 'cancelada';
   if (statusLower === 'pending') statusLower = 'pendiente';
 
+  if (row.observaciones) {
+    if (row.observaciones.includes('[Cliente llegó]')) {
+      statusLower = 'cliente_llego';
+    } else if (row.observaciones.includes('[Cliente sentado]')) {
+      statusLower = 'sentado';
+    }
+  }
+
   return {
     id_reserva: row.id,
     id: row.id,
@@ -142,13 +150,15 @@ export async function getAllReservations() {
 
     if (!error && Array.isArray(rows)) {
       const mapped = rows.map(mapSupabaseToGastroFlow);
-      // Guardar respaldo en IndexedDB
-      try {
-        for (const item of mapped) {
-          await dbPut('reservations', item);
+      // Guardar respaldo en IndexedDB si estamos en navegador
+      if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+        try {
+          for (const item of mapped) {
+            await dbPut('reservations', item);
+          }
+        } catch (cErr) {
+          // no bloqueante
         }
-      } catch (cErr) {
-        // no bloqueante
       }
       return mapped;
     } else if (error) {
@@ -158,13 +168,16 @@ export async function getAllReservations() {
     console.warn('Excepción al consultar Supabase:', err);
   }
 
-  // Fallback a IndexedDB local en caso de desconexión
-  try {
-    const list = await dbGetAll('reservations');
-    return list.sort((a, b) => new Date(a.fecha_hora_inicio) - new Date(b.fecha_hora_inicio));
-  } catch (err) {
-    return [];
+  // Fallback a IndexedDB local en caso de desconexión si estamos en navegador
+  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+    try {
+      const list = await dbGetAll('reservations');
+      return list.sort((a, b) => new Date(a.fecha_hora_inicio) - new Date(b.fecha_hora_inicio));
+    } catch (err) {
+      return [];
+    }
   }
+  return [];
 }
 
 /**
@@ -311,8 +324,10 @@ export async function saveReservation(resData, currentUser = 'Personal Interno')
     };
   }
 
-  await dbPut('reservations', resultObj);
-  liveSync.notify('RESERVATION_UPDATED', resultObj);
+  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+    try { await dbPut('reservations', resultObj); } catch (e) {}
+  }
+  if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', resultObj);
 
   return resultObj;
 }
@@ -334,36 +349,38 @@ export async function cancelReservation(reservationId, currentUser = 'Personal I
 
     if (updatedRow) {
       const mapped = mapSupabaseToGastroFlow(updatedRow);
-      await dbPut('reservations', mapped);
-      liveSync.notify('RESERVATION_UPDATED', mapped);
+      if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+        try { await dbPut('reservations', mapped); } catch (e) {}
+      }
+      if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', mapped);
       return mapped;
     }
   } catch (err) {
     console.warn('Supabase cancel update failed, updating local fallback:', err);
   }
 
-  const res = await dbGet('reservations', reservationId);
-  if (!res) throw new Error('Reserva no encontrada.');
-
-  res.estado = 'cancelada';
-  res.fecha_actualizacion = new Date().toISOString();
-
-  await dbPut('reservations', res);
-  liveSync.notify('RESERVATION_UPDATED', res);
-  return res;
+  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+    const res = await dbGet('reservations', reservationId);
+    if (res) {
+      res.estado = 'cancelada';
+      res.fecha_actualizacion = new Date().toISOString();
+      await dbPut('reservations', res);
+      if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', res);
+      return res;
+    }
+  }
+  return null;
 }
 
 /**
- * Cambiar estado de la reserva (ej. 'cliente_llego', 'sentado')
+ * Cambiar la mesa asignada a una reserva en Supabase y localmente
  */
-export async function updateReservationStatus(reservationId, newStatus) {
-  const statusUpper = newStatus.toUpperCase();
-
+export async function updateReservationTable(reservationId, newTableId) {
   try {
     const { data: updatedRow } = await supabase
       .from('reservas')
       .update({
-        estado: statusUpper,
+        mesa_id: newTableId,
         actualizado_en: new Date().toISOString()
       })
       .eq('id', reservationId)
@@ -372,23 +389,93 @@ export async function updateReservationStatus(reservationId, newStatus) {
 
     if (updatedRow) {
       const mapped = mapSupabaseToGastroFlow(updatedRow);
-      await dbPut('reservations', mapped);
-      liveSync.notify('RESERVATION_UPDATED', mapped);
+      if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+        try { await dbPut('reservations', mapped); } catch (e) {}
+      }
+      if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('Supabase table update failed, updating local fallback:', err);
+  }
+
+  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+    const res = await dbGet('reservations', reservationId);
+    if (res) {
+      res.id_mesa = newTableId;
+      res.fecha_actualizacion = new Date().toISOString();
+      await dbPut('reservations', res);
+      if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', res);
+      return res;
+    }
+  }
+  return null;
+}
+
+/**
+ * Cambiar estado de la reserva (ej. 'cliente_llego', 'sentado')
+ */
+export async function updateReservationStatus(reservationId, newStatus) {
+  const normStatus = (newStatus || '').toLowerCase();
+  let dbStatus = 'CONFIRMADA';
+
+  if (normStatus === 'cancelada' || normStatus === 'cancelled') dbStatus = 'CANCELADA';
+  else if (normStatus === 'completada') dbStatus = 'COMPLETADA';
+  else if (normStatus === 'pendiente') dbStatus = 'PENDIENTE';
+  else if (normStatus === 'no_se_presento') dbStatus = 'NO_SE_PRESENTO';
+
+  try {
+    // 1. Obtener observaciones existentes para actualizar etiquetas de llegada
+    const { data: currentRes } = await supabase
+      .from('reservas')
+      .select('observaciones, estado')
+      .eq('id', reservationId)
+      .maybeSingle();
+
+    let obs = currentRes?.observaciones || '';
+    // Limpiar etiquetas previas
+    obs = obs.replace(/\[Cliente llegó\]\s*/g, '').replace(/\[Cliente sentado\]\s*/g, '').trim();
+
+    if (normStatus === 'cliente_llego') {
+      obs = obs ? `[Cliente llegó] ${obs}` : '[Cliente llegó]';
+    } else if (normStatus === 'sentado') {
+      obs = obs ? `[Cliente sentado] ${obs}` : '[Cliente sentado]';
+    }
+
+    const { data: updatedRow } = await supabase
+      .from('reservas')
+      .update({
+        estado: dbStatus,
+        observaciones: obs || null,
+        actualizado_en: new Date().toISOString()
+      })
+      .eq('id', reservationId)
+      .select('*')
+      .maybeSingle();
+
+    if (updatedRow) {
+      const mapped = mapSupabaseToGastroFlow(updatedRow);
+      if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+        try { await dbPut('reservations', mapped); } catch (e) {}
+      }
+      if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', mapped);
       return mapped;
     }
   } catch (err) {
     console.warn('Supabase status update failed, updating local fallback:', err);
   }
 
-  const res = await dbGet('reservations', reservationId);
-  if (!res) throw new Error('Reserva no encontrada.');
-
-  res.estado = newStatus;
-  res.fecha_actualizacion = new Date().toISOString();
-
-  await dbPut('reservations', res);
-  liveSync.notify('RESERVATION_UPDATED', res);
-  return res;
+  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+    const res = await dbGet('reservations', reservationId);
+    if (res) {
+      res.estado = newStatus;
+      res.fecha_actualizacion = new Date().toISOString();
+      await dbPut('reservations', res);
+      if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', res);
+      return res;
+    }
+  }
+  return null;
 }
 
 /**
@@ -436,8 +523,8 @@ export function getTableReservationDetails(tableId, activeOrder, allReservations
     const resEnd = new Date(res.fecha_hora_fin).getTime();
     const nowTime = now.getTime();
 
-    // 1. Reserva activa en desarrollo
-    if (nowTime >= resStart && nowTime <= resEnd && res.estado !== 'sentado') {
+    // 1. Cliente que llegó o reserva activa en desarrollo
+    if (res.estado === 'cliente_llego' || res.estado === 'sentado' || (nowTime >= resStart && nowTime <= resEnd)) {
       currentReservation = res;
     } 
     // 2. Reserva próxima (dentro de los próximos 30 min)
@@ -484,4 +571,5 @@ export async function apiGetReservationById(reservationId) {
 export async function apiCancelReservationWeb(reservationId) {
   return await cancelReservation(reservationId, 'Cliente Web');
 }
+
 

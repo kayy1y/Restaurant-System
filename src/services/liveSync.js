@@ -81,6 +81,9 @@ class LiveSyncEngine {
             await this._handleIncomingCloudEvent('KDS_STATUS_CHANGED', payload.new, false);
           }
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, async (payload) => {
+          await this._handleIncomingCloudEvent('RESERVATION_UPDATED', payload.new || payload.old, false);
+        })
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log('📡 Suscrito exitosamente a Supabase Realtime Channel');

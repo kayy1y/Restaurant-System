@@ -5,7 +5,7 @@ import {
   Receipt, Flame, Calendar
 } from 'lucide-react';
 
-import { getAllReservations, getTableReservationDetails } from '../services/reservationService.js';
+import { getAllReservations, getTableReservationDetails, subscribeToReservations } from '../services/reservationService.js';
 import { liveSync } from '../services/liveSync.js';
 
 export default function TableMapPOS({ 
@@ -32,10 +32,16 @@ export default function TableMapPOS({
 
   React.useEffect(() => {
     loadReservations();
-    const unsubscribe = liveSync.subscribe('RESERVATION_UPDATED', () => {
+    const unsubscribeLiveSync = liveSync.subscribe('RESERVATION_UPDATED', () => {
       loadReservations();
     });
-    return () => unsubscribe && unsubscribe();
+    const unsubscribeRealtime = subscribeToReservations(() => {
+      loadReservations();
+    });
+    return () => {
+      if (unsubscribeLiveSync) unsubscribeLiveSync();
+      if (unsubscribeRealtime) unsubscribeRealtime();
+    };
   }, [loadReservations]);
 
   const filteredTables = zoneFilter === 'Todos' 
@@ -89,8 +95,16 @@ export default function TableMapPOS({
             statusLabel = 'OCUPADA';
             statusBadgeClass = 'bg-[#735036]/20 text-[#362214] border-[#735036]/50';
           } else if (resDetails.currentReservation) {
-            statusLabel = 'RESERVADA';
-            statusBadgeClass = 'bg-[#5d402b] text-[#fffdf9] border-[#3e2718] font-black';
+            if (resDetails.currentReservation.estado === 'cliente_llego') {
+              statusLabel = 'CLIENTE LLEGÓ';
+              statusBadgeClass = 'bg-sky-700 text-white border-sky-800 font-extrabold animate-pulse';
+            } else if (resDetails.currentReservation.estado === 'sentado') {
+              statusLabel = 'SENTADO / POR PEDIR';
+              statusBadgeClass = 'bg-amber-900 text-amber-100 border-amber-950 font-black';
+            } else {
+              statusLabel = 'RESERVADA';
+              statusBadgeClass = 'bg-[#5d402b] text-[#fffdf9] border-[#3e2718] font-black';
+            }
           } else if (resDetails.upcomingReservation) {
             const resStart = new Date(resDetails.upcomingReservation.fecha_hora_inicio).getTime();
             const nowTime = new Date().getTime();
