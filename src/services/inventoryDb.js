@@ -32,6 +32,9 @@ export const DEFAULT_CATEGORIES = [
 // Apertura y migración de esquemas de IndexedDB
 function openDB() {
   return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
+      return resolve(null);
+    }
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
@@ -55,92 +58,75 @@ function openDB() {
         db.createObjectStore('units_of_measure', { keyPath: 'id' });
       }
 
-      // 4. Tabla de Movimientos e Historial (Entradas, Salidas, Ajustes, Pedidos)
+      // 4. Tabla Transaccional de Movimientos (Kardex)
       if (!db.objectStoreNames.contains('inventory_movements')) {
         const movStore = db.createObjectStore('inventory_movements', { keyPath: 'id' });
         movStore.createIndex('item_id', 'item_id', { unique: false });
         movStore.createIndex('timestamp', 'timestamp', { unique: false });
+        movStore.createIndex('movement_type', 'movement_type', { unique: false });
       }
 
-      // 5. Tabla de Recetas de Platillos
+      // 5. Tabla de Recetas de Productos
       if (!db.objectStoreNames.contains('recipes')) {
-        const recipeStore = db.createObjectStore('recipes', { keyPath: 'id' });
-        recipeStore.createIndex('product_id', 'product_id', { unique: true });
+        db.createObjectStore('recipes', { keyPath: 'id' });
       }
 
       // 6. Tabla de Ingredientes por Receta
       if (!db.objectStoreNames.contains('recipe_ingredients')) {
-        const recIngStore = db.createObjectStore('recipe_ingredients', { keyPath: 'id' });
-        recIngStore.createIndex('recipe_id', 'recipe_id', { unique: false });
+        db.createObjectStore('recipe_ingredients', { keyPath: 'id' });
       }
     };
 
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
-
-    request.onerror = (event) => {
-      reject(event.target.error);
-    };
+    request.onsuccess = (event) => resolve(event.target.result);
+    request.onerror = (event) => reject(event.target.error);
   });
 }
 
-/**
- * Operación genérica para obtener todos los registros de un Store
- */
+// Métodos genéricos de persistencia local
 export async function getAllFromStore(storeName) {
   const db = await openDB();
+  if (!db) return [];
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
     const request = store.getAll();
-
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
 }
 
-/**
- * Obtener un registro por ID
- */
-export async function getFromStore(storeName, id) {
+export async function getFromStore(storeName, key) {
   const db = await openDB();
+  if (!db) return null;
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
-    const request = store.get(id);
-
+    const request = store.get(key);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
-/**
- * Guardar o actualizar registro
- */
 export async function saveToStore(storeName, item) {
   const db = await openDB();
+  if (!db) return item;
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
     const request = store.put(item);
-
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(item);
     request.onerror = () => reject(request.error);
   });
 }
 
-/**
- * Eliminar registro por ID
- */
-export async function deleteFromStore(storeName, id) {
+export async function deleteFromStore(storeName, key) {
   const db = await openDB();
+  if (!db) return true;
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
-    const request = store.delete(id);
-
-    request.onsuccess = () => resolve(request.result);
+    const request = store.delete(key);
+    request.onsuccess = () => resolve(true);
     request.onerror = () => reject(request.error);
   });
 }

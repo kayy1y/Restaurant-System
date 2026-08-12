@@ -9,6 +9,7 @@ import {
   deleteFromStore, 
   seedDatabaseIfEmpty 
 } from './inventoryDb.js';
+import { supabase } from '../lib/supabase.js';
 
 export const MOVEMENT_TYPES = {
   ENTRADA: { id: 'ENTRADA', label: 'Entrada de Mercadería', direction: 'in' },
@@ -114,6 +115,22 @@ export async function saveInventoryItem(itemData) {
     notes: itemData.notes || '',
     created_at: itemData.created_at || now
   };
+
+  // Sincronizar en Supabase public.productos
+  try {
+    const sbPayload = {
+      id: itemToSave.id.slice(0, 29),
+      nombre: itemToSave.name,
+      descripcion: (itemToSave.notes || `Stock: ${itemToSave.current_stock} ${itemToSave.unit_id}`).slice(0, 250),
+      precio_base: itemToSave.unit_cost || 0,
+      categoria_id: (itemToSave.category_id || 'cat-carnes-res').slice(0, 29),
+      sku_code: (itemToSave.sku_code || `SKU-${Date.now().toString().slice(-4)}`).slice(0, 29),
+      estado: itemToSave.status || 'disponible'
+    };
+    await supabase.from('productos').upsert([sbPayload], { onConflict: 'id' });
+  } catch (sbErr) {
+    console.warn('Sincronización Supabase de insumo en fallback:', sbErr.message);
+  }
 
   await saveToStore('inventory_items', itemToSave);
   return itemToSave;
