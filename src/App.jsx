@@ -90,6 +90,25 @@ export default function App() {
     }
   };
 
+  // Enforzar restricción estricta de pestañas permitidas por rol
+  React.useEffect(() => {
+    const roleIdUpper = (currentRole?.id || '').toUpperCase();
+    const roleAllowedTabs = {
+      SALONERO: ['mesas', 'reservas', 'ia'],
+      CAJERO: ['mesas', 'reservas', 'caja', 'facturas', 'devoluciones', 'ia'],
+      COCINA: ['cocina', 'inventario', 'ia'],
+      BARRA: ['cocina', 'inventario', 'ia'],
+      INVENTARIO: ['inventario', 'ia'],
+      GERENTE: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'identidad', 'devoluciones', 'ia', 'reportes'],
+      ADMINISTRADOR: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'identidad', 'devoluciones', 'ia', 'reportes', 'auditoria', 'admin']
+    };
+
+    const allowed = roleAllowedTabs[roleIdUpper];
+    if (allowed && !allowed.includes(activeTab)) {
+      setActiveTab(allowed[0]);
+    }
+  }, [currentRole, activeTab]);
+
   // Si no hay sesión iniciada, mostrar Pantalla de Login Obligatoria
   if (!activeSession) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
@@ -161,9 +180,7 @@ export default function App() {
           {/* Renderizado de Pestañas Operativas Generales */}
           {activeTab !== 'identidad' && activeTab !== 'reservas' && activeTab !== 'facturas' && (
             <>
-              {(activeTab === 'mesas' || (roleUpper === 'SALONERO' && activeTab !== 'cocina' && activeTab !== 'caja')) && (
-                <SaloneroView activeSessionUser={activeSession.user} />
-              )}
+              {activeTab === 'mesas' && <SaloneroView activeSessionUser={activeSession.user} />}
               {activeTab === 'cocina' && <CocinaView />}
               {activeTab === 'caja' && <CajeroView />}
               {activeTab === 'inventario' && <InventoryDashboard currentRole={currentRole} />}

@@ -5,22 +5,24 @@ import {
 } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, currentRole, isCompact, setIsCompact }) {
+  const roleIdUpper = (currentRole?.id || '').toUpperCase();
+
   const menuItems = [
-    { id: 'mesas', label: 'POS & Mesas', icon: LayoutGrid, roles: ['ADMINISTRADOR', 'gerente', 'SALONERO', 'CAJERO'] },
-    { id: 'reservas', label: 'Reservas', icon: Calendar, roles: ['ADMINISTRADOR', 'gerente', 'SALONERO', 'CAJERO'], badge: 'Nuevo' },
-    { id: 'cocina', label: 'KDS Cocina & Barra', icon: ChefHat, roles: ['ADMINISTRADOR', 'gerente', 'COCINA', 'barra', 'SALONERO'] },
-    { id: 'caja', label: 'Caja & Cobros', icon: CreditCard, roles: ['ADMINISTRADOR', 'gerente', 'CAJERO'] },
-    { id: 'inventario', label: 'Recetas & Stock', icon: Package, roles: ['ADMINISTRADOR', 'gerente', 'inventario', 'COCINA'] },
-    { id: 'facturas', label: 'Facturación v4.3', icon: FileText, roles: ['ADMINISTRADOR', 'gerente', 'CAJERO'] },
-    { id: 'identidad', label: 'Identidad La Vid', icon: Store, roles: ['ADMINISTRADOR', 'gerente'] },
-    { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw, roles: ['ADMINISTRADOR', 'gerente', 'CAJERO'] },
-    { id: 'ia', label: 'GastroAI Engine', icon: Sparkles, roles: ['ADMINISTRADOR', 'gerente', 'SALONERO', 'COCINA', 'inventario', 'CAJERO'], badge: 'AI' },
-    { id: 'reportes', label: 'Reportes & Ventas', icon: BarChart3, roles: ['ADMINISTRADOR', 'gerente'] },
-    { id: 'auditoria', label: 'Auditoría & Logs', icon: ShieldAlert, roles: ['ADMINISTRADOR', 'gerente'] }
+    { id: 'mesas', label: 'POS & Mesas', icon: LayoutGrid, roles: ['ADMINISTRADOR', 'GERENTE', 'SALONERO', 'CAJERO'] },
+    { id: 'reservas', label: 'Reservas', icon: Calendar, roles: ['ADMINISTRADOR', 'GERENTE', 'SALONERO', 'CAJERO'], badge: 'Nuevo' },
+    { id: 'cocina', label: 'KDS Cocina & Barra', icon: ChefHat, roles: ['ADMINISTRADOR', 'GERENTE', 'COCINA', 'BARRA'] },
+    { id: 'caja', label: 'Caja & Cobros', icon: CreditCard, roles: ['ADMINISTRADOR', 'GERENTE', 'CAJERO'] },
+    { id: 'inventario', label: 'Recetas & Stock', icon: Package, roles: ['ADMINISTRADOR', 'GERENTE', 'INVENTARIO', 'COCINA'] },
+    { id: 'facturas', label: 'Facturación v4.3', icon: FileText, roles: ['ADMINISTRADOR', 'GERENTE', 'CAJERO'] },
+    { id: 'identidad', label: 'Identidad La Vid', icon: Store, roles: ['ADMINISTRADOR', 'GERENTE'] },
+    { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw, roles: ['ADMINISTRADOR', 'GERENTE', 'CAJERO'] },
+    { id: 'ia', label: 'GastroAI Engine', icon: Sparkles, roles: ['ADMINISTRADOR', 'GERENTE', 'SALONERO', 'COCINA', 'INVENTARIO', 'CAJERO'], badge: 'AI' },
+    { id: 'reportes', label: 'Reportes & Ventas', icon: BarChart3, roles: ['ADMINISTRADOR', 'GERENTE'] },
+    { id: 'auditoria', label: 'Auditoría & Logs', icon: ShieldAlert, roles: ['ADMINISTRADOR', 'GERENTE'] }
   ];
 
   const visibleItems = menuItems.filter(item => 
-    item.roles.includes(currentRole.id) || item.roles.includes(currentRole.id.toUpperCase())
+    item.roles.map(r => r.toUpperCase()).includes(roleIdUpper)
   );
 
   return (
