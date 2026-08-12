@@ -6,6 +6,7 @@
 
 import { dbGetAll, dbGet, dbPut, dbDelete } from './db.js';
 import { liveSync } from './liveSync.js';
+import { supabase } from '../lib/supabase.js';
 
 export const RESERVATION_STATUSES = [
   { id: 'confirmada', label: 'Confirmada', color: 'bg-emerald-950/40 text-emerald-300 border-emerald-500/50' },
@@ -36,6 +37,22 @@ export function getCostaRicaNow() {
 }
 
 /**
+ * Helper para obtener string de fecha YYYY-MM-DD en Zona Horaria de Costa Rica
+ */
+export function getCostaRicaDateString(dateInput = new Date()) {
+  try {
+    const d = typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput) : dateInput;
+    return d.toLocaleDateString('sv-SE', { timeZone: 'America/Costa_Rica' });
+  } catch (err) {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+}
+
+/**
  * Convertir Fecha (YYYY-MM-DD) y Hora (HH:MM) a un Date en zona horaria local
  */
 export function buildCRDateTime(dateStr, timeStr) {
@@ -46,9 +63,102 @@ export function buildCRDateTime(dateStr, timeStr) {
 }
 
 /**
- * Consultar todas las reservas
+ * Mapea una fila de la tabla public.reservas de Supabase a la estructura de GastroFlow POS
+ */
+export function mapSupabaseToGastroFlow(row) {
+  if (!row) return null;
+
+  const startDate = row.fecha_hora_inicio ? new Date(row.fecha_hora_inicio) : new Date();
+  const endDate = row.fecha_hora_fin ? new Date(row.fecha_hora_fin) : new Date(startDate.getTime() + 90 * 60 * 1000);
+
+  const fechaStr = getCostaRicaDateString(startDate);
+  const horaStr = startDate.toLocaleTimeString('es-CR', { timeZone: 'America/Costa_Rica', hour: '2-digit', minute: '2-digit', hour12: false });
+
+  let duracionMin = 90;
+  if (row.fecha_hora_fin && row.fecha_hora_inicio) {
+    const diffMin = Math.round((endDate.getTime() - startDate.getTime()) / 60000);
+    if (!isNaN(diffMin) && diffMin > 0) duracionMin = diffMin;
+  }
+
+  let statusLower = (row.estado || 'confirmada').toLowerCase();
+  if (statusLower === 'confirmed') statusLower = 'confirmada';
+  if (statusLower === 'cancelled') statusLower = 'cancelada';
+  if (statusLower === 'pending') statusLower = 'pendiente';
+
+  return {
+    id_reserva: row.id,
+    id: row.id,
+    id_mesa: row.mesa_id || 'T-01',
+    nombre_cliente: row.nombre_cliente || 'Cliente Web',
+    telefono: row.telefono_cliente || '',
+    email_cliente: row.email_cliente || '',
+    cantidad_personas: Number(row.cantidad_personas) || 2,
+    fecha: fechaStr,
+    hora: horaStr,
+    duracion_minutos: duracionMin,
+    fecha_hora_inicio: row.fecha_hora_inicio || startDate.toISOString(),
+    fecha_hora_fin: row.fecha_hora_fin || endDate.toISOString(),
+    estado: statusLower,
+    observaciones: row.observaciones || '',
+    origen: row.origen || 'WEB',
+    creado_por: row.origen === 'WEB' ? 'Cliente Web' : (row.creado_por || 'Personal Interno'),
+    fecha_creacion: row.creado_en || startDate.toISOString(),
+    fecha_actualizacion: row.actualizado_en || new Date().toISOString()
+  };
+}
+
+/**
+ * Mapea los datos de una reserva en GastroFlow POS al payload para la tabla public.reservas de Supabase
+ */
+export function mapGastroFlowToSupabasePayload(resData) {
+  const durationMin = parseInt(resData.duracion_minutos) || 90;
+  const startDate = buildCRDateTime(resData.fecha, resData.hora);
+  const endDate = new Date(startDate.getTime() + durationMin * 60 * 1000);
+
+  let estadoDb = (resData.estado || 'confirmada').toUpperCase();
+
+  return {
+    mesa_id: resData.id_mesa || 'T-01',
+    nombre_cliente: resData.nombre_cliente ? resData.nombre_cliente.trim() : '',
+    telefono_cliente: resData.telefono ? resData.telefono.trim() : null,
+    cantidad_personas: parseInt(resData.cantidad_personas) || 2,
+    fecha_hora_inicio: startDate.toISOString(),
+    fecha_hora_fin: endDate.toISOString(),
+    estado: estadoDb,
+    observaciones: resData.observaciones || null,
+    origen: resData.origen || 'INTERNO'
+  };
+}
+
+/**
+ * Consultar todas las reservas directamente desde Supabase public.reservas
  */
 export async function getAllReservations() {
+  try {
+    const { data: rows, error } = await supabase
+      .from('reservas')
+      .select('*')
+      .order('fecha_hora_inicio', { ascending: true });
+
+    if (!error && Array.isArray(rows)) {
+      const mapped = rows.map(mapSupabaseToGastroFlow);
+      // Guardar respaldo en IndexedDB
+      try {
+        for (const item of mapped) {
+          await dbPut('reservations', item);
+        }
+      } catch (cErr) {
+        // no bloqueante
+      }
+      return mapped;
+    } else if (error) {
+      console.warn('Error consultando Supabase reservas:', error.message);
+    }
+  } catch (err) {
+    console.warn('Excepción al consultar Supabase:', err);
+  }
+
+  // Fallback a IndexedDB local en caso de desconexión
   try {
     const list = await dbGetAll('reservations');
     return list.sort((a, b) => new Date(a.fecha_hora_inicio) - new Date(b.fecha_hora_inicio));
@@ -117,7 +227,7 @@ export async function getAvailableTablesForTimeSlot(allTables, dateStr, timeStr,
 }
 
 /**
- * Crear o Actualizar una Reserva (Fase 1 Interna + Preparada para Fase 2 Web)
+ * Crear o Actualizar una Reserva en Supabase y localmente
  */
 export async function saveReservation(resData, currentUser = 'Personal Interno') {
   if (!resData.nombre_cliente || !resData.nombre_cliente.trim()) {
@@ -140,7 +250,7 @@ export async function saveReservation(resData, currentUser = 'Personal Interno')
   const startISO = startDate.toISOString();
   const endISO = endDate.toISOString();
 
-  const resId = resData.id_reserva || `res-${Date.now()}`;
+  const resId = resData.id_reserva || (resData.id && typeof resData.id === 'string' && resData.id.includes('-') ? resData.id : null);
   
   // Validar choques de horarios en tiempo real
   const availabilityCheck = await checkTableAvailability(resData.id_mesa, startISO, endISO, resId);
@@ -148,39 +258,90 @@ export async function saveReservation(resData, currentUser = 'Personal Interno')
     throw new Error(availabilityCheck.message);
   }
 
-  const nowISO = new Date().toISOString();
+  const payload = mapGastroFlowToSupabasePayload(resData);
+  let resultObj = null;
 
-  const reservationObj = {
-    id_reserva: resId,
-    id_mesa: resData.id_mesa,
-    nombre_cliente: resData.nombre_cliente.trim(),
-    telefono: resData.telefono.trim(),
-    cantidad_personas: parseInt(resData.cantidad_personas) || 2,
-    fecha: resData.fecha,
-    hora: resData.hora,
-    duracion_minutos: durationMin,
-    fecha_hora_inicio: startISO,
-    fecha_hora_fin: endISO,
-    estado: resData.estado || 'confirmada', // confirmada, pendiente, cliente_llego, sentado, completada, cancelada, no_se_presento
-    observaciones: resData.observaciones || '',
-    origen: resData.origen || 'INTERNO', // INTERNO o WEB
-    creado_por: resData.creado_por || currentUser,
-    fecha_creacion: resData.fecha_creacion || nowISO,
-    fecha_actualizacion: nowISO
-  };
+  if (resId) {
+    // Actualizar en Supabase
+    const { data: updatedRow, error } = await supabase
+      .from('reservas')
+      .update({
+        ...payload,
+        actualizado_en: new Date().toISOString()
+      })
+      .eq('id', resId)
+      .select('*')
+      .maybeSingle();
 
-  await dbPut('reservations', reservationObj);
+    if (!error && updatedRow) {
+      resultObj = mapSupabaseToGastroFlow(updatedRow);
+    }
+  } else {
+    // Crear en Supabase
+    const { data: insertedRow, error } = await supabase
+      .from('reservas')
+      .insert([payload])
+      .select('*')
+      .single();
 
-  // Emitir evento en tiempo real para sincronizar todas las tablets y pantallas al instante
-  liveSync.notify('RESERVATION_UPDATED', reservationObj);
+    if (!error && insertedRow) {
+      resultObj = mapSupabaseToGastroFlow(insertedRow);
+    }
+  }
 
-  return reservationObj;
+  if (!resultObj) {
+    const nowISO = new Date().toISOString();
+    resultObj = {
+      id_reserva: resId || `res-${Date.now()}`,
+      id_mesa: resData.id_mesa,
+      nombre_cliente: resData.nombre_cliente.trim(),
+      telefono: resData.telefono.trim(),
+      cantidad_personas: parseInt(resData.cantidad_personas) || 2,
+      fecha: resData.fecha,
+      hora: resData.hora,
+      duracion_minutos: durationMin,
+      fecha_hora_inicio: startISO,
+      fecha_hora_fin: endISO,
+      estado: resData.estado || 'confirmada',
+      observaciones: resData.observaciones || '',
+      origen: resData.origen || 'INTERNO',
+      creado_por: resData.creado_por || currentUser,
+      fecha_creacion: resData.fecha_creacion || nowISO,
+      fecha_actualizacion: nowISO
+    };
+  }
+
+  await dbPut('reservations', resultObj);
+  liveSync.notify('RESERVATION_UPDATED', resultObj);
+
+  return resultObj;
 }
 
 /**
  * Cancelar Reserva (Sin eliminar del historial)
  */
 export async function cancelReservation(reservationId, currentUser = 'Personal Interno') {
+  try {
+    const { data: updatedRow } = await supabase
+      .from('reservas')
+      .update({
+        estado: 'CANCELADA',
+        actualizado_en: new Date().toISOString()
+      })
+      .eq('id', reservationId)
+      .select('*')
+      .maybeSingle();
+
+    if (updatedRow) {
+      const mapped = mapSupabaseToGastroFlow(updatedRow);
+      await dbPut('reservations', mapped);
+      liveSync.notify('RESERVATION_UPDATED', mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('Supabase cancel update failed, updating local fallback:', err);
+  }
+
   const res = await dbGet('reservations', reservationId);
   if (!res) throw new Error('Reserva no encontrada.');
 
@@ -196,6 +357,29 @@ export async function cancelReservation(reservationId, currentUser = 'Personal I
  * Cambiar estado de la reserva (ej. 'cliente_llego', 'sentado')
  */
 export async function updateReservationStatus(reservationId, newStatus) {
+  const statusUpper = newStatus.toUpperCase();
+
+  try {
+    const { data: updatedRow } = await supabase
+      .from('reservas')
+      .update({
+        estado: statusUpper,
+        actualizado_en: new Date().toISOString()
+      })
+      .eq('id', reservationId)
+      .select('*')
+      .maybeSingle();
+
+    if (updatedRow) {
+      const mapped = mapSupabaseToGastroFlow(updatedRow);
+      await dbPut('reservations', mapped);
+      liveSync.notify('RESERVATION_UPDATED', mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('Supabase status update failed, updating local fallback:', err);
+  }
+
   const res = await dbGet('reservations', reservationId);
   if (!res) throw new Error('Reserva no encontrada.');
 
@@ -205,6 +389,28 @@ export async function updateReservationStatus(reservationId, newStatus) {
   await dbPut('reservations', res);
   liveSync.notify('RESERVATION_UPDATED', res);
   return res;
+}
+
+/**
+ * Suscribirse a cambios en tiempo real (Supabase Realtime) en la tabla public.reservas
+ */
+export function subscribeToReservations(onPayload) {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel('public:reservas-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'reservas' },
+      (payload) => {
+        if (onPayload) onPayload(payload);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 /**
@@ -278,3 +484,4 @@ export async function apiGetReservationById(reservationId) {
 export async function apiCancelReservationWeb(reservationId) {
   return await cancelReservation(reservationId, 'Cliente Web');
 }
+

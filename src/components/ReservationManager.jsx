@@ -7,7 +7,8 @@ import {
 
 import { 
   getAllReservations, saveReservation, cancelReservation, updateReservationStatus, 
-  getAvailableTablesForTimeSlot, RESERVATION_STATUSES, ESTIMATED_DURATIONS 
+  getAvailableTablesForTimeSlot, RESERVATION_STATUSES, ESTIMATED_DURATIONS,
+  subscribeToReservations, getCostaRicaDateString
 } from '../services/reservationService.js';
 import { liveSync } from '../services/liveSync.js';
 
@@ -16,13 +17,15 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
   const [reservations, setReservations] = React.useState([]);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [toastMsg, setToastMsg] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const [errorMsg, setErrorMsg] = React.useState('');
 
   // Modal Nueva / Editar Reserva
   const [showModal, setShowModal] = React.useState(false);
   const [editingRes, setEditingRes] = React.useState(null);
   const [availableTables, setAvailableTables] = React.useState([]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getCostaRicaDateString(new Date());
 
   const [form, setForm] = React.useState({
     nombre_cliente: '',
@@ -37,18 +40,36 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
   });
   const [formError, setFormError] = React.useState('');
 
-  // Cargar Reservas y Suscribir a WebSocket / LiveSync
+  // Cargar Reservas desde Supabase y Suscribir a WebSocket / LiveSync / Realtime
   const loadData = React.useCallback(async () => {
-    const list = await getAllReservations();
-    setReservations(list);
+    try {
+      setLoading(true);
+      setErrorMsg('');
+      const list = await getAllReservations();
+      setReservations(list);
+    } catch (err) {
+      console.error('Error al cargar reservas:', err);
+      setErrorMsg('No fue posible cargar las reservas.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   React.useEffect(() => {
     loadData();
-    const unsubscribe = liveSync.subscribe('RESERVATION_UPDATED', () => {
+
+    const unsubscribeLiveSync = liveSync.subscribe('RESERVATION_UPDATED', () => {
       loadData();
     });
-    return () => unsubscribe && unsubscribe();
+
+    const unsubscribeRealtime = subscribeToReservations(() => {
+      loadData();
+    });
+
+    return () => {
+      if (unsubscribeLiveSync) unsubscribeLiveSync();
+      if (unsubscribeRealtime) unsubscribeRealtime();
+    };
   }, [loadData]);
 
   // Recalcular mesas reales disponibles cuando cambie fecha, hora, duración o comensales
@@ -93,8 +114,8 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
       nombre_cliente: res.nombre_cliente,
       telefono: res.telefono,
       cantidad_personas: res.cantidad_personas,
-      fecha: res.fecha || res.fecha_hora_inicio.split('T')[0],
-      hora: res.hora || new Date(res.fecha_hora_inicio).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      fecha: res.fecha || getCostaRicaDateString(res.fecha_hora_inicio),
+      hora: res.hora || new Date(res.fecha_hora_inicio).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Costa_Rica' }),
       duracion_minutos: res.duracion_minutos || 90,
       id_mesa: res.id_mesa,
       observaciones: res.observaciones || '',
@@ -155,14 +176,14 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
   const filteredReservations = reservations.filter(r => {
     const term = searchTerm.toLowerCase();
     const matchesSearch = 
-      r.nombre_cliente.toLowerCase().includes(term) ||
-      r.telefono.includes(term) ||
+      (r.nombre_cliente || '').toLowerCase().includes(term) ||
+      (r.telefono || '').includes(term) ||
       (r.observaciones && r.observaciones.toLowerCase().includes(term)) ||
-      r.id_mesa.toLowerCase().includes(term);
+      (r.id_mesa || '').toLowerCase().includes(term);
 
     if (!matchesSearch) return false;
 
-    const resDateStr = new Date(r.fecha_hora_inicio).toISOString().split('T')[0];
+    const resDateStr = r.fecha || getCostaRicaDateString(r.fecha_hora_inicio);
 
     if (activeTab === 'hoy') {
       return resDateStr === todayStr && r.estado !== 'cancelada' && r.estado !== 'completada';
@@ -193,7 +214,7 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
             Módulo de Reservas de Mesas
           </h2>
           <p className="text-xs text-[#3d2717] font-semibold mt-1">
-            Administra reservas internas de comensales, sincronización con mesas reales y choques de horarios en tiempo real (Costa Rica).
+            Administra reservas de comensales, sincronización con Supabase en tiempo real y mesas reales (Costa Rica).
           </p>
         </div>
 
@@ -249,7 +270,23 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
       {/* VISTA 1, 2 Y 4: LISTA DE RESERVAS */}
       {activeTab !== 'calendario' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredReservations.length === 0 ? (
+          {loading ? (
+            <div className="col-span-full py-16 text-center text-[#6e5a4b] glass-panel border border-[#dac8b3] rounded-3xl bg-[#fffdf9]">
+              <CalendarIcon className="w-10 h-10 text-[#c86414] animate-bounce mx-auto mb-2" />
+              <p className="font-bold text-sm text-[#231710]">Cargando reservas desde Supabase...</p>
+            </div>
+          ) : errorMsg ? (
+            <div className="col-span-full py-12 text-center text-[#802319] glass-panel border border-[#802319]/30 rounded-3xl bg-[#fffdf9]">
+              <AlertTriangle className="w-10 h-10 text-[#802319] mx-auto mb-2" />
+              <p className="font-bold text-sm">{errorMsg}</p>
+              <button
+                onClick={loadData}
+                className="mt-3 px-4 py-2 bg-[#5d402b] text-[#fffdf9] rounded-xl text-xs font-bold"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : filteredReservations.length === 0 ? (
             <div className="col-span-full py-16 text-center text-[#6e5a4b] glass-panel border border-[#dac8b3] rounded-3xl bg-[#fffdf9]">
               <CalendarIcon className="w-10 h-10 text-[#dac8b3] mx-auto mb-2" />
               <p className="font-bold text-sm text-[#231710]">No se encontraron reservas registradas</p>
@@ -259,8 +296,9 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
             filteredReservations.map(res => {
               const statusObj = RESERVATION_STATUSES.find(s => s.id === res.estado) || RESERVATION_STATUSES[0];
               const tableObj = tables.find(t => t.id === res.id_mesa);
-              const startTimeStr = new Date(res.fecha_hora_inicio).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
-              const endTimeStr = new Date(res.fecha_hora_fin).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+              const startTimeStr = new Date(res.fecha_hora_inicio).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Costa_Rica' });
+              const endTimeStr = new Date(res.fecha_hora_fin).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Costa_Rica' });
+
 
               return (
                 <div key={res.id_reserva} className="glass-card p-4 rounded-3xl border border-[#dac8b3] bg-[#fffdf9] space-y-3 shadow-sm flex flex-col justify-between">
