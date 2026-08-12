@@ -177,9 +177,17 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
     }
   };
 
-  const handleSeatClientAction = (res) => {
-    if (onSeatCustomer) {
-      onSeatCustomer(res);
+  const handleSeatClientAction = async (res) => {
+    try {
+      await updateReservationStatus(res.id_reserva, 'sentado');
+      await loadData();
+      setToastMsg(`Cliente ${res.nombre_cliente} sentado en Mesa ${res.id_mesa}. Se movió la reserva al Historial.`);
+      setTimeout(() => setToastMsg(''), 3500);
+      if (onSeatCustomer) {
+        onSeatCustomer(res);
+      }
+    } catch (err) {
+      alert('Error sentando cliente: ' + err.message);
     }
   };
 
@@ -197,11 +205,11 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
     const resDateStr = r.fecha || getCostaRicaDateString(r.fecha_hora_inicio);
 
     if (activeTab === 'hoy') {
-      return resDateStr === todayStr && r.estado !== 'cancelada' && r.estado !== 'completada';
+      return resDateStr === todayStr && r.estado !== 'cancelada' && r.estado !== 'completada' && r.estado !== 'sentado';
     } else if (activeTab === 'proximas') {
-      return resDateStr >= todayStr && r.estado !== 'cancelada' && r.estado !== 'completada';
+      return resDateStr >= todayStr && r.estado !== 'cancelada' && r.estado !== 'completada' && r.estado !== 'sentado';
     } else if (activeTab === 'historial') {
-      return r.estado === 'completada' || r.estado === 'cancelada' || r.estado === 'no_se_presento';
+      return r.estado === 'completada' || r.estado === 'cancelada' || r.estado === 'no_se_presento' || r.estado === 'sentado';
     }
     return true;
   });
