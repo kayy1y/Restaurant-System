@@ -71,44 +71,167 @@ export async function getItemById(id) {
 }
 
 /**
- * Crear o Actualizar un artículo en la Base de Datos
+ * Buscar artículo de inventario por Código (SKU) o por Nombre
  */
-export async function saveInventoryItem(itemData) {
+export async function findInventoryItemByNameOrCode(query) {
+  if (!query || !query.trim()) return null;
+  const norm = query.trim().toLowerCase();
+
+  // 1. Consultar primero en Supabase insumos_inventario
+  try {
+    const { data: sbMatch } = await supabase
+      .from('insumos_inventario')
+      .select('*')
+      .or(`sku_code.eq.${query.trim()},nombre.ilike.${query.trim()}`)
+      .maybeSingle();
+
+    if (sbMatch) {
+      return {
+        id: sbMatch.id,
+        sku_code: sbMatch.sku_code,
+        name: sbMatch.nombre,
+        current_stock: parseFloat(sbMatch.stock_actual || 0),
+        min_stock: parseFloat(sbMatch.stock_minimo || 5),
+        unit_id: sbMatch.unidad_medida || 'kg',
+        unit_cost: parseFloat(sbMatch.costo_unitario || 0)
+      };
+    }
+  } catch (err) {}
+
+  // 2. Consultar en Supabase productos
+  try {
+    const { data: prodMatch } = await supabase
+      .from('productos')
+      .select('*')
+      .or(`sku_code.eq.${query.trim()},nombre.ilike.${query.trim()}`)
+      .maybeSingle();
+
+    if (prodMatch) {
+      return {
+        id: prodMatch.id,
+        sku_code: prodMatch.sku_code,
+        name: prodMatch.nombre,
+        current_stock: 0,
+        min_stock: 5,
+        unit_id: 'unid',
+        unit_cost: parseFloat(prodMatch.precio_base || 0)
+      };
+    }
+  } catch (err) {}
+
+  // 3. Consultar almacenamiento local / IndexedDB
+  try {
+    const allItems = await getAllFromStore('inventory_items');
+    if (Array.isArray(allItems)) {
+      const match = allItems.find(i => 
+        (i.sku_code && i.sku_code.trim().toLowerCase() === norm) || 
+        (i.name && i.name.trim().toLowerCase() === norm)
+      );
+      if (match) return match;
+    }
+  } catch (err) {}
+
+  return null;
+}
+
+/**
+ * Crear o Acumular Stock en un artículo en la Base de Datos
+ */
+export async function saveInventoryItem(itemData, options = {}) {
   // Validaciones obligatorias de datos
   if (!itemData.name || !itemData.name.trim()) {
     throw new Error('El nombre del artículo es obligatorio.');
   }
 
-  if (itemData.current_stock === undefined || itemData.current_stock < 0) {
-    throw new Error('La cantidad inicial no puede ser negativa.');
+  const addedQty = parseFloat(itemData.current_stock || 0);
+  if (addedQty < 0) {
+    throw new Error('La cantidad no puede ser negativa.');
   }
 
-  if (itemData.min_stock === undefined || itemData.min_stock < 0) {
-    throw new Error('La cantidad mínima no puede ser negativa.');
+  // 1. Si no se especificó un ID directo de edición, buscar si ya existe por Código (SKU) o Nombre
+  if (!itemData.id) {
+    const existing = await findInventoryItemByNameOrCode(itemData.sku_code) || 
+                     await findInventoryItemByNameOrCode(itemData.name);
+
+    if (existing) {
+      // YA EXISTE: Sumar la nueva cantidad al stock existente
+      const newStock = parseFloat(existing.current_stock || 0) + addedQty;
+      let computedStatus = 'disponible';
+      if (newStock <= 0) computedStatus = 'agotado';
+      else if (newStock <= (existing.min_stock || 5)) computedStatus = 'bajo_stock';
+
+      const updatedItem = {
+        ...existing,
+        current_stock: newStock,
+        unit_cost: parseFloat(itemData.unit_cost !== undefined ? itemData.unit_cost : (existing.unit_cost || 0)),
+        notes: itemData.notes || existing.notes || '',
+        status: computedStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      // Guardar / actualizar en Supabase insumos_inventario y productos
+      try {
+        await supabase.from('insumos_inventario').upsert([{
+          id: updatedItem.id.slice(0, 50),
+          sku_code: (updatedItem.sku_code || `SKU-${updatedItem.id}`).slice(0, 30),
+          nombre: updatedItem.name,
+          stock_actual: newStock,
+          stock_minimo: updatedItem.min_stock || 5,
+          unidad_medida: updatedItem.unit_id || 'kg',
+          costo_unitario: updatedItem.unit_cost || 0,
+          actualizado_en: new Date().toISOString()
+        }], { onConflict: 'id' });
+      } catch (err) {}
+
+      try {
+        await supabase.from('productos').upsert([{
+          id: updatedItem.id.slice(0, 50),
+          sku_code: (updatedItem.sku_code || `SKU-${updatedItem.id}`).slice(0, 30),
+          categoria_id: (updatedItem.category_id || 'cat-carnes-res').slice(0, 50),
+          nombre: updatedItem.name,
+          descripcion: updatedItem.notes || `Stock acumulado: ${newStock} ${updatedItem.unit_id}`,
+          precio_base: updatedItem.unit_cost || 0,
+          estado: 'ACTIVO',
+          disponible: true
+        }], { onConflict: 'id' });
+      } catch (err) {}
+
+      // Registrar movimiento de Entrada por acumulación
+      try {
+        if (addedQty > 0) {
+          await recordStockMovement({
+            itemId: updatedItem.id,
+            movementType: 'ENTRADA',
+            qtyChanged: addedQty,
+            unitId: updatedItem.unit_id,
+            reason: 'Suma automática por coincidencia de nombre o código SKU',
+            userName: options.userName || 'Administrador'
+          });
+        }
+      } catch (e) {}
+
+      await saveToStore('inventory_items', updatedItem);
+      return { ...updatedItem, isAccumulated: true, addedQty };
+    }
   }
 
-  if (!itemData.unit_id) {
-    throw new Error('Debe seleccionar una unidad de medida válida.');
-  }
-
+  // 2. SI NO EXISTÍA O ES EDICIÓN DIRECTA DE ID: Crear/actualizar registro
   const now = new Date().toISOString();
-
-  // Calcular estado del producto
   let computedStatus = 'disponible';
-  if (itemData.current_stock <= 0) {
+  if (addedQty <= 0) {
     computedStatus = 'agotado';
-  } else if (itemData.current_stock <= itemData.min_stock) {
+  } else if (addedQty <= (itemData.min_stock || 5)) {
     computedStatus = 'bajo_stock';
   }
 
   const itemToSave = {
     id: itemData.id || `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    sku_code: itemData.sku_code || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
+    sku_code: itemData.sku_code ? itemData.sku_code.trim() : `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
     name: itemData.name.trim(),
     category_id: itemData.category_id || 'cat-suministros',
-    current_stock: parseFloat(itemData.current_stock),
-    unit_id: itemData.unit_id,
-    min_stock: parseFloat(itemData.min_stock),
+    current_stock: addedQty,
+    unit_id: itemData.unit_id || 'unit-kg',
+    min_stock: parseFloat(itemData.min_stock !== undefined ? itemData.min_stock : 5),
     unit_cost: parseFloat(itemData.unit_cost || 0),
     updated_at: now,
     status: computedStatus,
@@ -116,24 +239,38 @@ export async function saveInventoryItem(itemData) {
     created_at: itemData.created_at || now
   };
 
-  // Sincronizar en Supabase public.productos
+  // Guardar en Supabase public.insumos_inventario
   try {
-    const sbPayload = {
-      id: itemToSave.id.slice(0, 29),
+    await supabase.from('insumos_inventario').upsert([{
+      id: itemToSave.id.slice(0, 50),
+      sku_code: (itemToSave.sku_code || `SKU-${itemToSave.id}`).slice(0, 30),
       nombre: itemToSave.name,
-      descripcion: (itemToSave.notes || `Stock: ${itemToSave.current_stock} ${itemToSave.unit_id}`).slice(0, 250),
-      precio_base: itemToSave.unit_cost || 0,
-      categoria_id: (itemToSave.category_id || 'cat-carnes-res').slice(0, 29),
-      sku_code: (itemToSave.sku_code || `SKU-${Date.now().toString().slice(-4)}`).slice(0, 29),
-      estado: itemToSave.status || 'disponible'
-    };
-    await supabase.from('productos').upsert([sbPayload], { onConflict: 'id' });
+      stock_actual: itemToSave.current_stock,
+      stock_minimo: itemToSave.min_stock,
+      unidad_medida: itemToSave.unit_id,
+      costo_unitario: itemToSave.unit_cost,
+      actualizado_en: now
+    }], { onConflict: 'id' });
   } catch (sbErr) {
     console.warn('Sincronización Supabase de insumo en fallback:', sbErr.message);
   }
 
+  // Guardar en Supabase public.productos
+  try {
+    await supabase.from('productos').upsert([{
+      id: itemToSave.id.slice(0, 50),
+      sku_code: (itemToSave.sku_code || `SKU-${itemToSave.id}`).slice(0, 30),
+      categoria_id: (itemToSave.category_id || 'cat-carnes-res').slice(0, 50),
+      nombre: itemToSave.name,
+      descripcion: itemToSave.notes || `Nuevo insumo registrado con ${itemToSave.current_stock} ${itemToSave.unit_id}`,
+      precio_base: itemToSave.unit_cost || 0,
+      estado: 'ACTIVO',
+      disponible: true
+    }], { onConflict: 'id' });
+  } catch (err) {}
+
   await saveToStore('inventory_items', itemToSave);
-  return itemToSave;
+  return { ...itemToSave, isAccumulated: false };
 }
 
 /**

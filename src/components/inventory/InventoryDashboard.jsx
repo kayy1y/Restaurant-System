@@ -69,12 +69,31 @@ export default function InventoryDashboard({ currentRole }) {
   const outOfStockCount = items.filter(i => i.current_stock <= 0).length;
   const totalInventoryValuation = items.reduce((sum, i) => sum + (parseFloat(i.current_stock || 0) * parseFloat(i.unit_cost || 0)), 0);
 
+  const [toastMsg, setToastMsg] = React.useState('');
+
+  const handleFormSuccess = (result) => {
+    loadDataFromDB();
+    if (result && result.isAccumulated) {
+      setToastMsg(`✓ Insumo detectado: Se acumuló +${result.addedQty} a "${result.name}" (Existencia total: ${result.current_stock} ${result.unit_id || 'kg'}).`);
+    } else if (result) {
+      setToastMsg(`✓ Se registró el nuevo insumo "${result.name}" en la Base de Datos con ${result.current_stock} de stock.`);
+    }
+    setTimeout(() => setToastMsg(''), 4500);
+  };
+
   if (viewMode === 'history') {
     return <MovementHistoryView onBack={() => setViewMode('grid')} />;
   }
 
   return (
     <div className="space-y-6">
+      {/* Toast Notificación */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#1f140d] text-[#f7f2e9] border border-amber-500 font-bold text-xs px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-4">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" /> {toastMsg}
+        </div>
+      )}
+
       {/* Header Principal del Módulo */}
       <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
@@ -101,18 +120,16 @@ export default function InventoryDashboard({ currentRole }) {
             className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-sm"
           >
             <History className="w-4 h-4 text-amber-400" />
-            <span>Bitácora de Movimientos DB</span>
+            <span>Bitácora Kardex DB</span>
           </button>
 
-          {(currentRole.id === 'admin' || currentRole.id === 'gerente' || currentRole.id === 'inventario') && (
-            <button
-              onClick={() => setItemFormTarget('NEW')}
-              className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition-all transform hover:scale-105"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Registrar Insumo</span>
-            </button>
-          )}
+          <button
+            onClick={() => setItemFormTarget('NEW')}
+            className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform hover:scale-105"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Agregar Stock / Insumo</span>
+          </button>
         </div>
       </div>
 
@@ -244,10 +261,19 @@ export default function InventoryDashboard({ currentRole }) {
         {loading ? (
           <div className="py-12 text-center text-xs font-mono text-slate-400">Consultando Base de Datos de Inventario...</div>
         ) : items.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 border border-dashed border-slate-800 rounded-2xl text-xs space-y-2">
-            <Package className="w-10 h-10 mx-auto text-slate-600" />
-            <p className="font-bold text-slate-300">No se encontraron artículos registrados en el catálogo</p>
-            <p className="text-[11px] text-slate-500">Prueba ajustando los filtros o registra un nuevo insumo.</p>
+          <div className="py-16 text-center text-slate-500 border border-dashed border-slate-800 rounded-2xl text-xs space-y-3">
+            <Package className="w-10 h-10 mx-auto text-amber-500/70" />
+            <p className="font-bold text-slate-200 text-sm">No hay artículos registrados o no coinciden con los filtros</p>
+            <p className="text-[11px] text-slate-400 max-w-md mx-auto">
+              Ingresa el nombre o código SKU de cualquier insumo para sumar existencias automáticamente o crear un nuevo registro en la Base de Datos.
+            </p>
+            <button
+              onClick={() => setItemFormTarget('NEW')}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform hover:scale-105"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Agregar Stock / Insumo a la DB</span>
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -367,7 +393,7 @@ export default function InventoryDashboard({ currentRole }) {
           categories={categories}
           units={units}
           onClose={() => setItemFormTarget(null)}
-          onSuccess={loadDataFromDB}
+          onSuccess={handleFormSuccess}
         />
       )}
 

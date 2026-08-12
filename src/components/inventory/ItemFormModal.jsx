@@ -1,6 +1,6 @@
 import React from 'react';
-import { X, Package, Save, CheckCircle2, AlertCircle } from 'lucide-react';
-import { saveInventoryItem } from '../../services/inventoryService';
+import { X, Package, Save, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { saveInventoryItem, findInventoryItemByNameOrCode } from '../../services/inventoryService';
 
 export default function ItemFormModal({ 
   itemToEdit, 
@@ -25,6 +25,26 @@ export default function ItemFormModal({
 
   const [errorMsg, setErrorMsg] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [matchingItem, setMatchingItem] = React.useState(null);
+
+  // Búsqueda en tiempo real para detectar si ya existe un insumo por Nombre o SKU
+  React.useEffect(() => {
+    if (isEditing) return;
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      const match = await findInventoryItemByNameOrCode(formData.sku_code) || 
+                    await findInventoryItemByNameOrCode(formData.name);
+      if (isMounted) {
+        setMatchingItem(match);
+      }
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [formData.name, formData.sku_code, isEditing]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,9 +62,9 @@ export default function ItemFormModal({
 
     setIsSubmitting(true);
     try {
-      await saveInventoryItem(formData);
+      const result = await saveInventoryItem(formData);
       setIsSubmitting(false);
-      onSuccess();
+      onSuccess(result);
       onClose();
     } catch (err) {
       setIsSubmitting(false);
@@ -204,6 +224,37 @@ export default function ItemFormModal({
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
             />
           </div>
+
+          {/* Indicador en tiempo real de Acumulación o Nuevo Registro */}
+          {!isEditing && (formData.name.trim() || formData.sku_code.trim()) && (
+            <div className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center gap-2.5 transition-all ${
+              matchingItem 
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' 
+                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+            }`}>
+              {matchingItem ? (
+                <>
+                  <RefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div>
+                    <span className="font-bold">Insumo Existente Detectado:</span> "{matchingItem.name}" (Existencia actual: {matchingItem.current_stock} {matchingItem.unit_id}).
+                    <p className="text-[11px] text-amber-200/80 font-normal mt-0.5">
+                      La cantidad ingresada (+{formData.current_stock || 0}) se <strong>SUMARÁ al stock actual</strong> en la Base de Datos.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="font-bold">Insumo Nuevo:</span> Sin coincidencias previas por nombre o código SKU.
+                    <p className="text-[11px] text-emerald-200/80 font-normal mt-0.5">
+                      Se registrará un <strong>nuevo artículo en la Base de Datos</strong> con {formData.current_stock || 0} de existencia inicial.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {errorMsg && (
             <div className="bg-rose-500/20 border border-rose-500/40 p-3 rounded-xl text-xs text-rose-300 font-semibold flex items-center gap-2">

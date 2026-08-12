@@ -14,7 +14,6 @@ export default function Sidebar({ activeTab, setActiveTab, currentRole, isCompac
     { id: 'caja', label: 'Caja & Cobros', icon: CreditCard, roles: ['ADMINISTRADOR', 'GERENTE', 'CAJERO'] },
     { id: 'inventario', label: 'Recetas & Stock', icon: Package, roles: ['ADMINISTRADOR', 'GERENTE', 'INVENTARIO', 'COCINA'] },
     { id: 'facturas', label: 'Facturación v4.3', icon: FileText, roles: ['ADMINISTRADOR', 'GERENTE', 'CAJERO'] },
-    { id: 'identidad', label: 'Identidad La Vid', icon: Store, roles: ['ADMINISTRADOR', 'GERENTE'] },
     { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw, roles: ['ADMINISTRADOR', 'GERENTE', 'CAJERO'] },
     { id: 'ia', label: 'GastroAI Engine', icon: Sparkles, roles: ['ADMINISTRADOR', 'GERENTE', 'SALONERO', 'COCINA', 'INVENTARIO', 'CAJERO'], badge: 'AI' },
     { id: 'reportes', label: 'Reportes & Ventas', icon: BarChart3, roles: ['ADMINISTRADOR', 'GERENTE'] },

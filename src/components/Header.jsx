@@ -82,19 +82,11 @@ export default function Header({
             </div>
           </div>
 
-          {/* Offline Simulator Switch */}
-          <button
-            onClick={() => setIsOffline(!isOffline)}
-            title="Simular pérdida o reconexión de red local / Internet"
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm ${
-              isOffline 
-                ? 'bg-rose-950/60 text-rose-200 border-rose-600 animate-pulse-subtle' 
-                : 'bg-[#46593a]/30 text-[#d4e6c8] border-[#46593a] hover:bg-[#46593a]/50'
-            }`}
-          >
-            {isOffline ? <WifiOff className="w-3.5 h-3.5 text-rose-300" /> : <Wifi className="w-3.5 h-3.5 text-emerald-300" />}
-            <span>{isOffline ? 'OFFLINE' : 'EN LÍNEA'}</span>
-          </button>
+          {/* Sistema En Línea */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm bg-[#46593a]/30 text-[#d4e6c8] border-[#46593a]">
+            <Wifi className="w-3.5 h-3.5 text-emerald-300" />
+            <span>EN LÍNEA</span>
+          </div>
 
           {/* Real-time Clock */}
           <div className="hidden lg:flex items-center gap-1.5 bg-[#1f140d] border border-[#4a3324] px-3 py-1.5 rounded-xl text-xs text-[#d8c4a7] font-mono shadow-inner">

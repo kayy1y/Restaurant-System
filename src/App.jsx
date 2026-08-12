@@ -3,7 +3,6 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import LoginScreen from './components/LoginScreen';
 import IncidentsModal from './components/IncidentsModal';
-import TestWorkerSwitcher from './components/TestWorkerSwitcher';
 
 // Interfaces Especializadas por Puesto de Empleado
 import SaloneroView from './components/roles/SaloneroView';
@@ -18,7 +17,6 @@ import ReturnsModal from './components/ReturnsModal';
 import GastroAIAssistant from './components/GastroAIAssistant';
 import ReportsDashboard from './components/ReportsDashboard';
 import AuditLogViewer from './components/AuditLogViewer';
-import RestaurantIdentitySettings from './components/RestaurantIdentitySettings';
 import ReservationManager from './components/ReservationManager';
 
 import { ROLES, TABLES } from './data/mockData';
@@ -60,23 +58,6 @@ export default function App() {
     else setActiveTab('mesas');
   };
 
-  // Selector Rápido de Trabajador (Modo Pruebas Sin Recargar Página)
-  const handleSwitchWorker = async (newUser) => {
-    const matchedRole = ROLES.find(r => r.id.toUpperCase() === newUser.role_id.toUpperCase()) || ROLES[0];
-    const newSession = { user: newUser, role: matchedRole };
-    setActiveSession(newSession);
-    setCurrentRole(matchedRole);
-
-    const userPrefs = await getUserPreferences(newUser.id);
-    applyThemeToDOM(userPrefs);
-    if (userPrefs.sidebar_style === 'compact') setIsSidebarCompact(true);
-
-    if (newUser.role_id === 'SALONERO') setActiveTab('mesas');
-    else if (newUser.role_id === 'COCINA') setActiveTab('cocina');
-    else if (newUser.role_id === 'CAJERO') setActiveTab('caja');
-    else setActiveTab('mesas');
-  };
-
   // Acción Sentar Cliente desde el módulo de Reservas: cambia mesa a OCUPADA y pasa a la vista POS
   const handleSeatCustomerFromReservation = async (reservation) => {
     try {
@@ -99,8 +80,8 @@ export default function App() {
       COCINA: ['cocina', 'inventario', 'ia'],
       BARRA: ['cocina', 'inventario', 'ia'],
       INVENTARIO: ['inventario', 'ia'],
-      GERENTE: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'identidad', 'devoluciones', 'ia', 'reportes'],
-      ADMINISTRADOR: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'identidad', 'devoluciones', 'ia', 'reportes', 'auditoria', 'admin']
+      GERENTE: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'devoluciones', 'ia', 'reportes'],
+      ADMINISTRADOR: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'devoluciones', 'ia', 'reportes', 'auditoria', 'admin']
     };
 
     const allowed = roleAllowedTabs[roleIdUpper];
@@ -113,8 +94,6 @@ export default function App() {
   if (!activeSession) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
-
-  const roleUpper = currentRole.id.toUpperCase();
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex flex-col font-sans transition-colors duration-300">
@@ -143,13 +122,8 @@ export default function App() {
         />
 
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full relative">
-          {/* Barra de Herramientas Superior: Identidad Activa, Selector de Modo Pruebas & Incidencias */}
-          <div className="mb-4 flex flex-wrap justify-between items-center gap-2">
-            <TestWorkerSwitcher
-              activeSession={activeSession}
-              onSwitchWorker={handleSwitchWorker}
-            />
-
+          {/* Barra de Herramientas Superior: Incidencias */}
+          <div className="mb-4 flex justify-end items-center gap-2">
             <button
               onClick={() => setShowIncidentModal(true)}
               className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
@@ -157,11 +131,6 @@ export default function App() {
               <span>⚠️ Reportar Incidencia</span>
             </button>
           </div>
-
-          {/* Renderizado de Módulos de Personalización & Configuración */}
-          {activeTab === 'identidad' && (
-            <RestaurantIdentitySettings currentRole={currentRole} />
-          )}
 
           {/* Módulo de Reservas de Mesas */}
           {activeTab === 'reservas' && (
@@ -178,7 +147,7 @@ export default function App() {
           )}
 
           {/* Renderizado de Pestañas Operativas Generales */}
-          {activeTab !== 'identidad' && activeTab !== 'reservas' && activeTab !== 'facturas' && (
+          {activeTab !== 'reservas' && activeTab !== 'facturas' && (
             <>
               {activeTab === 'mesas' && <SaloneroView activeSessionUser={activeSession.user} />}
               {activeTab === 'cocina' && <CocinaView />}
