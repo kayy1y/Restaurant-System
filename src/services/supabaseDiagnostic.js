@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 export async function testSupabaseConnection() {
   const result = {
     isConfigured: isSupabaseConfigured,
-    url: import.meta.env.VITE_SUPABASE_URL || localStorage.getItem('GASTRO_SUPABASE_URL') || 'No configurada',
+    url: import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || localStorage.getItem('GASTRO_SUPABASE_URL') || 'No configurada',
     dbPingSuccess: false,
     dbPingMessage: '',
     tablesExist: false,

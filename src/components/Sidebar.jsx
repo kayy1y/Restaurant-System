@@ -17,7 +17,8 @@ export default function Sidebar({ activeTab, setActiveTab, currentRole, isCompac
     { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw, roles: ['ADMINISTRADOR', 'GERENTE', 'CAJERO'] },
     { id: 'ia', label: 'GastroAI Engine', icon: Sparkles, roles: ['ADMINISTRADOR', 'GERENTE', 'SALONERO', 'COCINA', 'INVENTARIO', 'CAJERO'], badge: 'AI' },
     { id: 'reportes', label: 'Reportes & Ventas', icon: BarChart3, roles: ['ADMINISTRADOR', 'GERENTE'] },
-    { id: 'auditoria', label: 'Auditoría & Logs', icon: ShieldAlert, roles: ['ADMINISTRADOR', 'GERENTE'] }
+    { id: 'auditoria', label: 'Auditoría & Logs', icon: ShieldAlert, roles: ['ADMINISTRADOR', 'GERENTE'] },
+    { id: 'admin', label: 'Administración', icon: Store, roles: ['ADMINISTRADOR'] }
   ];
 
   const visibleItems = menuItems.filter(item => 
@@ -77,7 +78,7 @@ export default function Sidebar({ activeTab, setActiveTab, currentRole, isCompac
         <div className="hidden md:block mt-6 pt-4 border-t border-[#422c1d] px-3">
           <div className="bg-[#1f140d] border border-[#4a3324] p-3 rounded-2xl shadow-inner">
             <p className="text-[11px] text-[#d8c4a7] font-bold mb-0.5">La Vid Steak House</p>
-            <p className="text-[10px] text-[#c4b1a1] font-semibold">{currentRole.name}</p>
+            <p className="text-[10px] text-[#c4b1a1] font-semibold">{currentRole?.name || currentRole?.id || 'Rol'}</p>
           </div>
         </div>
       )}

@@ -8,6 +8,38 @@ import { getProductRecipe } from './menuService.js';
 import { recordStockMovement } from './inventoryService.js';
 import { liveSync } from './liveSync.js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
+import { validateAuthorizationPin } from './authService.js';
+import { roundMoney, calculateTaxesAndTotals } from '../utils/money.js';
+
+function buildSupabaseSyncError(context, error) {
+  if (!error) return null;
+
+  return {
+    context,
+    code: error.code || 'UNKNOWN',
+    message: error.message || 'Error desconocido en Supabase',
+    details: error.details || null,
+    hint: error.hint || null
+  };
+}
+
+function summarizeSupabaseSyncErrors(errors = []) {
+  return errors
+    .filter(Boolean)
+    .map(error => `${error.context} [${error.code}]: ${error.message}${error.hint ? ` | hint: ${error.hint}` : ''}`)
+    .join(' || ');
+}
+
+async function updateOrderCloudSyncState(order, status, errors = []) {
+  const syncedOrder = {
+    ...order,
+    cloud_sync_status: status,
+    cloud_sync_error: errors.length > 0 ? summarizeSupabaseSyncErrors(errors) : null
+  };
+
+  await dbPut('orders', syncedOrder);
+  return syncedOrder;
+}
 
 /**
  * Transacción Atómica: Crear Pedido Inicial
@@ -29,35 +61,44 @@ export async function createOrderWithStockDeduction({
   const orderId = `ORD-${Date.now().toString().slice(-6)}`;
   const comandaId = `CMD-${Date.now().toString().slice(-6)}`;
 
-  let subtotal = 0;
+  let subtotalRaw = 0;
   const processedItems = [];
 
   for (const item of items) {
-    let unitPrice = item.unit_price;
-    const customizations = item.customizations || [];
+    // Protección contra manipulación de precios desde el cliente (DevTools): 
+    // Rechaza precios inferiores al oficial de la DB, pero permite precios superiores o personalizados.
+    const officialProd = await dbGet('menu_products', item.product_id);
+    let unitPrice = item.unit_price || 0;
+    if (officialProd && officialProd.base_price) {
+      if (!unitPrice || unitPrice < officialProd.base_price) {
+        unitPrice = officialProd.base_price;
+      }
+    }
 
+    const customizations = item.customizations || [];
     if (customizations.includes('QUESO_EXTRA')) unitPrice += 800;
     if (customizations.includes('PROTEINA_EXTRA')) unitPrice += 1500;
 
-    const itemTotal = unitPrice * item.quantity;
-    subtotal += itemTotal;
+    unitPrice = roundMoney(unitPrice);
+    const itemTotal = roundMoney(unitPrice * item.quantity);
+    subtotalRaw = roundMoney(subtotalRaw + itemTotal);
 
     processedItems.push({
       product_id: item.product_id,
-      product_name: item.product_name,
+      product_name: officialProd ? officialProd.name : item.product_name,
       unit_price: unitPrice,
       quantity: item.quantity,
       item_total: itemTotal,
       customizations: customizations,
       notes: item.notes || (customizations.length > 0 ? customizations.join(', ') : ''),
       status: 'ENVIADO_A_COCINA',
+      stock_deducted: false,
       audioMemo: item.audioMemo || null
     });
   }
 
-  const taxIva = Math.round(subtotal * 0.13);
-  const taxService = isTakeout ? 0 : Math.round(subtotal * 0.10);
-  const total = subtotal + taxIva + taxService;
+  const totals = calculateTaxesAndTotals(subtotalRaw, isTakeout);
+  const { subtotal, taxIva, taxService, total } = totals;
 
   // Deducción Atómica de Receta en Bodega
   for (const item of processedItems) {
@@ -121,9 +162,12 @@ export async function createOrderWithStockDeduction({
   await dbPut('comandas', newComanda);
 
   // SI SUPABASE ESTÁ CONFIGURADO: Insertar directamente en las tablas de la Nube Supabase
+  let syncedOrder = newOrder;
   if (isSupabaseConfigured && supabase) {
+    const syncErrors = [];
+
     try {
-      await supabase.from('pedidos').insert({
+      const { error: orderInsertError } = await supabase.from('pedidos').insert({
         id: orderId,
         mesa_id: tableId,
         nombre_mesa: tableName,
@@ -137,32 +181,56 @@ export async function createOrderWithStockDeduction({
         total: total,
         creado_en: now
       });
+      const normalizedOrderError = buildSupabaseSyncError('pedidos.insert', orderInsertError);
+      if (normalizedOrderError) {
+        syncErrors.push(normalizedOrderError);
+      }
 
-      for (const item of processedItems) {
-        await supabase.from('detalles_pedido').insert({
-          pedido_id: orderId,
-          producto_id: item.product_id,
-          nombre_producto: item.product_name,
-          precio_unitario: item.unit_price,
-          cantidad: item.quantity,
-          monto_total: item.item_total,
-          personalizaciones: item.customizations,
-          indicacion_escrita: item.notes,
-          audio_url: item.audioMemo?.audioUrl || null,
-          audio_duracion_seg: item.audioMemo?.duration || 0,
-          audio_transcripcion: item.audioMemo?.transcription || null,
-          estado: 'ENVIADO_A_COCINA'
-        });
+      if (!normalizedOrderError) {
+        for (const item of processedItems) {
+          const { error: detailInsertError } = await supabase.from('detalles_pedido').insert({
+            pedido_id: orderId,
+            producto_id: item.product_id,
+            nombre_producto: item.product_name,
+            precio_unitario: item.unit_price,
+            cantidad: item.quantity,
+            monto_total: item.item_total,
+            personalizaciones: item.customizations,
+            indicacion_escrita: item.notes,
+            audio_url: item.audioMemo?.audioUrl || null,
+            audio_duracion_seg: item.audioMemo?.duration || 0,
+            audio_transcripcion: item.audioMemo?.transcription || null,
+            estado: 'ENVIADO_A_COCINA'
+          });
+
+          const normalizedDetailError = buildSupabaseSyncError('detalles_pedido.insert', detailInsertError);
+          if (normalizedDetailError) {
+            syncErrors.push(normalizedDetailError);
+          }
+        }
+      }
+
+      syncedOrder = await updateOrderCloudSyncState(newOrder, syncErrors.length > 0 ? 'ERROR' : 'SYNCED', syncErrors);
+      if (syncErrors.length > 0) {
+        console.error('Pedido guardado localmente, pero fallo la sincronizacion con Supabase:', syncErrors);
       }
     } catch (supErr) {
-      console.error('Notificación inserción Supabase:', supErr.message);
+      console.error('Excepcion inesperada sincronizando pedido con Supabase:', supErr);
+      syncedOrder = await updateOrderCloudSyncState(newOrder, 'ERROR', [
+        buildSupabaseSyncError('pedidos.sync_exception', {
+          code: 'UNEXPECTED_EXCEPTION',
+          message: supErr.message || 'Excepcion inesperada',
+          details: null,
+          hint: null
+        })
+      ]);
     }
   }
 
   // Transmitir evento reactivo a todos los dispositivos
-  liveSync.emit('ORDER_CREATED', { order: newOrder, comanda: newComanda });
+  liveSync.emit('ORDER_CREATED', { order: syncedOrder, comanda: newComanda });
 
-  return { order: newOrder, comanda: newComanda };
+  return { order: syncedOrder, comanda: newComanda };
 }
 
 /**
@@ -212,7 +280,9 @@ export async function getActiveOrdersForWaiters() {
             total: parseFloat(p.total),
             status: p.estado,
             account_status: p.estado_cuenta,
-            created_at: p.creado_en
+            created_at: p.creado_en,
+            cloud_sync_status: 'SYNCED',
+            cloud_sync_error: null
           };
 
           await dbPut('orders', mappedOrder);
@@ -314,9 +384,12 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
 
   await dbPut('comandas', newComanda);
 
+  let syncedOrder = updatedOrder;
   if (isSupabaseConfigured && supabase) {
+    const syncErrors = [];
+
     try {
-      await supabase.from('pedidos').update({
+      const { error: orderUpdateError } = await supabase.from('pedidos').update({
         subtotal: newSubtotal,
         impuesto_iva: newTaxIva,
         impuesto_servicio: newTaxService,
@@ -324,30 +397,54 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
         estado: 'EN_PREPARACION',
         actualizado_en: now
       }).eq('id', orderId);
+      const normalizedOrderError = buildSupabaseSyncError('pedidos.update', orderUpdateError);
+      if (normalizedOrderError) {
+        syncErrors.push(normalizedOrderError);
+      }
 
-      for (const item of newProcessedItems) {
-        await supabase.from('detalles_pedido').insert({
-          pedido_id: orderId,
-          producto_id: item.product_id,
-          nombre_producto: item.product_name,
-          precio_unitario: item.unit_price,
-          cantidad: item.quantity,
-          monto_total: item.item_total,
-          personalizaciones: item.customizations,
-          indicacion_escrita: item.notes,
-          audio_url: item.audioMemo?.audioUrl || null,
-          audio_duracion_seg: item.audioMemo?.duration || 0,
-          audio_transcripcion: item.audioMemo?.transcription || null,
-          estado: 'ENVIADO_A_COCINA'
-        });
+      if (!normalizedOrderError) {
+        for (const item of newProcessedItems) {
+          const { error: detailInsertError } = await supabase.from('detalles_pedido').insert({
+            pedido_id: orderId,
+            producto_id: item.product_id,
+            nombre_producto: item.product_name,
+            precio_unitario: item.unit_price,
+            cantidad: item.quantity,
+            monto_total: item.item_total,
+            personalizaciones: item.customizations,
+            indicacion_escrita: item.notes,
+            audio_url: item.audioMemo?.audioUrl || null,
+            audio_duracion_seg: item.audioMemo?.duration || 0,
+            audio_transcripcion: item.audioMemo?.transcription || null,
+            estado: 'ENVIADO_A_COCINA'
+          });
+
+          const normalizedDetailError = buildSupabaseSyncError('detalles_pedido.insert', detailInsertError);
+          if (normalizedDetailError) {
+            syncErrors.push(normalizedDetailError);
+          }
+        }
+      }
+
+      syncedOrder = await updateOrderCloudSyncState(updatedOrder, syncErrors.length > 0 ? 'ERROR' : 'SYNCED', syncErrors);
+      if (syncErrors.length > 0) {
+        console.error('Pedido actualizado localmente, pero fallo la sincronizacion con Supabase:', syncErrors);
       }
     } catch (supErr) {
-      console.error('Supabase update notification:', supErr.message);
+      console.error('Excepcion inesperada sincronizando actualizacion del pedido:', supErr);
+      syncedOrder = await updateOrderCloudSyncState(updatedOrder, 'ERROR', [
+        buildSupabaseSyncError('pedidos.update_exception', {
+          code: 'UNEXPECTED_EXCEPTION',
+          message: supErr.message || 'Excepcion inesperada',
+          details: null,
+          hint: null
+        })
+      ]);
     }
   }
 
-  liveSync.emit('ORDER_UPDATED', { order: updatedOrder, newComanda });
-  return updatedOrder;
+  liveSync.emit('ORDER_UPDATED', { order: syncedOrder, newComanda });
+  return syncedOrder;
 }
 
 /**
@@ -374,18 +471,40 @@ export async function removeItemFromOrder({
   const targetItem = order.items[itemIndex];
   const now = new Date().toISOString();
 
-  if (targetItem.status === 'EN_PREPARACION' || targetItem.status === 'LISTO' || targetItem.status === 'ENTREGADO') {
-    if (userName !== 'Admin General' && managerPin !== '9999') {
-      throw new Error('Retirar un plato ya preparado o entregado requiere PIN de autorización de Gerente o Administrador (9999).');
+  if (targetItem.status === 'ENVIADO_A_COCINA' || targetItem.status === 'EN_PREPARACION' || targetItem.status === 'LISTO' || targetItem.status === 'ENTREGADO' || managerPin) {
+    const auth = await validateAuthorizationPin(managerPin, ['ADMINISTRADOR', 'GERENTE']);
+    if (!auth.valid) {
+      throw new Error(`Retirar un plato ya enviado a cocina requiere PIN de autorización de Gerente o Administrador activo. ${auth.error || ''}`);
     }
 
-    await recordStockMovement({
-      itemId: 'ing-carne-angus',
-      movementType: 'DESPERDICIO',
-      qtyChanged: 0.180,
-      reason: `Merma por retiro de plato preparado: ${targetItem.product_name}. Motivo: ${writtenReason}`,
-      userName: userName
-    });
+    const recipeData = await getProductRecipe(targetItem.product_id);
+    if (recipeData.hasRecipe) {
+      for (const ing of recipeData.ingredients) {
+        try {
+          await recordStockMovement({
+            itemId: ing.inventory_item_id,
+            movementType: 'DESPERDICIO',
+            qtyChanged: ing.quantity * targetItem.quantity,
+            reason: `Merma por retiro de plato preparado: ${targetItem.product_name}. Motivo: ${writtenReason}`,
+            userName: userName
+          });
+        } catch (mErr) {
+          console.warn('Advertencia al registrar merma de inventario:', mErr.message);
+        }
+      }
+    } else {
+      try {
+        await recordStockMovement({
+          itemId: 'ing-carne-angus',
+          movementType: 'DESPERDICIO',
+          qtyChanged: 0.180,
+          reason: `Merma por retiro de plato preparado: ${targetItem.product_name}. Motivo: ${writtenReason}`,
+          userName: userName
+        });
+      } catch (mErr) {
+        console.warn('Advertencia al registrar merma de inventario:', mErr.message);
+      }
+    }
   } else {
     const recipeData = await getProductRecipe(targetItem.product_id);
     if (recipeData.hasRecipe) {

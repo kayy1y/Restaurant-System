@@ -3,6 +3,7 @@ import {
   RotateCcw, ShieldAlert, AlertTriangle, CheckCircle2, 
   FileText, Sparkles, UserCheck 
 } from 'lucide-react';
+import { validateAuthorizationPin } from '../services/authService.js';
 
 export default function ReturnsModal({ orders, currentRole, onLogAudit }) {
   const [selectedOrder, setSelectedOrder] = React.useState('');
@@ -11,6 +12,7 @@ export default function ReturnsModal({ orders, currentRole, onLogAudit }) {
   const [managerPass, setManagerPass] = React.useState('');
   const [details, setDetails] = React.useState('');
   const [successMsg, setSuccessMsg] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState('');
 
   const reasons = [
     'Platillo llegó frío',
@@ -21,9 +23,18 @@ export default function ReturnsModal({ orders, currentRole, onLogAudit }) {
     'Doble cobro por error'
   ];
 
-  const handleProcessReturn = (e) => {
+  const handleProcessReturn = async (e) => {
     e.preventDefault();
     if (!selectedOrder) return;
+    setErrorMsg('');
+
+    if (currentRole.id !== 'ADMINISTRADOR' && currentRole.id !== 'gerente') {
+      const auth = await validateAuthorizationPin(managerPass, ['ADMINISTRADOR', 'GERENTE']);
+      if (!auth.valid) {
+        setErrorMsg(auth.error || 'PIN de autorización de Gerente o Administrador no válido.');
+        return;
+      }
+    }
 
     onLogAudit({
       user: currentRole.name,
@@ -33,6 +44,7 @@ export default function ReturnsModal({ orders, currentRole, onLogAudit }) {
     });
 
     setSuccessMsg(true);
+    setManagerPass('');
     setTimeout(() => {
       setSuccessMsg(false);
       setSelectedOrder('');
@@ -155,6 +167,13 @@ export default function ReturnsModal({ orders, currentRole, onLogAudit }) {
               <span>PROCESAR DEVOLUCIÓN & AUDITAR</span>
             </button>
           </form>
+
+          {errorMsg && (
+            <div className="bg-rose-500/20 border border-rose-500/40 p-3.5 rounded-xl text-rose-300 text-xs font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           {successMsg && (
             <div className="bg-emerald-500/20 border border-emerald-500/40 p-3.5 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2">

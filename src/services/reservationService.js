@@ -142,6 +142,7 @@ export function mapGastroFlowToSupabasePayload(resData) {
  * Consultar todas las reservas directamente desde Supabase public.reservas
  */
 export async function getAllReservations() {
+  let supabaseReservations = [];
   try {
     const { data: rows, error } = await supabase
       .from('reservas')
@@ -149,35 +150,30 @@ export async function getAllReservations() {
       .order('fecha_hora_inicio', { ascending: true });
 
     if (!error && Array.isArray(rows)) {
-      const mapped = rows.map(mapSupabaseToGastroFlow);
-      // Guardar respaldo en IndexedDB si estamos en navegador
-      if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
-        try {
-          for (const item of mapped) {
-            await dbPut('reservations', item);
-          }
-        } catch (cErr) {
-          // no bloqueante
-        }
-      }
-      return mapped;
-    } else if (error) {
-      console.warn('Error consultando Supabase reservas:', error.message);
+      supabaseReservations = rows.map(mapSupabaseToGastroFlow);
     }
   } catch (err) {
-    console.warn('Excepción al consultar Supabase:', err);
+    console.warn('Excepción al consultar Supabase reservas:', err.message);
   }
 
-  // Fallback a IndexedDB local en caso de desconexión si estamos en navegador
-  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+  let localReservations = [];
+  if (typeof indexedDB !== 'undefined') {
     try {
-      const list = await dbGetAll('reservations');
-      return list.sort((a, b) => new Date(a.fecha_hora_inicio) - new Date(b.fecha_hora_inicio));
+      localReservations = await dbGetAll('reservations');
     } catch (err) {
-      return [];
+      localReservations = [];
     }
   }
-  return [];
+
+  // Fusionar reservaciones de Supabase e IndexedDB sin duplicar IDs
+  const combinedMap = new Map();
+  for (const r of [...localReservations, ...supabaseReservations]) {
+    if (r && (r.id_reserva || r.id)) {
+      combinedMap.set(r.id_reserva || r.id, r);
+    }
+  }
+
+  return Array.from(combinedMap.values()).sort((a, b) => new Date(a.fecha_hora_inicio) - new Date(b.fecha_hora_inicio));
 }
 
 /**
@@ -324,7 +320,7 @@ export async function saveReservation(resData, currentUser = 'Personal Interno')
     };
   }
 
-  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+  if (typeof indexedDB !== 'undefined') {
     try { await dbPut('reservations', resultObj); } catch (e) {}
   }
   if (liveSync && liveSync.emit) liveSync.emit('RESERVATION_UPDATED', resultObj);

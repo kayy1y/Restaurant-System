@@ -1,0 +1,168 @@
+[     121ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/node_modules/.vite/deps/chunk-PJEEZAML.js?v=bfaa4050:21550
+[     638ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://127.0.0.1:3000/src/services/liveSync.js:88
+[    1299ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[    6476ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   11657ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   16848ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   22021ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   27195ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   32382ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   37554ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   42726ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   47903ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   53094ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   58289ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   63763ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   68953ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   74140ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   79606ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   85011ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   90192ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[   95374ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  100564ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  105744ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  110949ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  116160ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  121367ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  126856ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  132063ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  137248ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  142438ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  147694ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  152874ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  158104ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  163291ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  168479ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  173669ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  178868ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  184114ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  189444ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  194782ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  200134ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  206467ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  212863ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  220929ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  230452ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  238325ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  248064ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  254540ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  259717ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  264896ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  270361ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  275536ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  280972ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  286149ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  291336ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  296540ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  301733ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  307280ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  312615ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  317957ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  323616ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  329965ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  336059ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  345340ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  352399ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  362446ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  370310ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  377767ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  382942ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  388119ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  393298ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  398492ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  403682ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  408866ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  414069ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  419545ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  424745ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  430335ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  435578ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  441033ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  446610ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  452501ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  459336ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  467253ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  476568ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  485977ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  492704ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  501356ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  506530ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  511716ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  517172ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  522369ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  527554ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  532726ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  537910ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  543099ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  548333ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  553571ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  558847ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  564244ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  569779ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  576136ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  582031ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  591975ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  598279ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  605514ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  611722ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  621417ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  626590ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  631763ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  636939ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  642108ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  647287ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  652752ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  657934ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  663140ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  668351ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  673578ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  678883ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  684138ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  689810ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  695301ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  702098ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  709363ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  719189ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  726996ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  736722ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  746210ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  756142ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  766154ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  773883ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  780704ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  789045ms] [ERROR] WebSocket connection to 'wss://gastroflow-socket-server.onrender.com/' failed: Error during WebSocket handshake: Unexpected response code: 502 @ http://127.0.0.1:3000/src/services/liveSync.js:38
+[  789893ms] [LOG] Notificación Supabase Realtime (Esperando credenciales en .env.local): cannot add `postgres_changes` callbacks for realtime:gastroflow_realtime_channel after `subscribe()`. @ http://127.0.0.1:3000/src/services/liveSync.js?t=1788316279272:93
+[  790070ms] [ERROR] Failed to load resource: the server responded with a status of 504 (Outdated Request) @ http://127.0.0.1:3000/src/components/roles/AdminView.jsx?t=1788316279516:0
+[  790070ms] [ERROR] [hmr] Failed to reload /src/components/roles/AdminView.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:3000/@vite/client:175
+[  790071ms] [ERROR] Failed to load resource: the server responded with a status of 504 (Outdated Request) @ http://127.0.0.1:3000/src/index.css?t=1788316279516:0
+[  790071ms] [ERROR] [hmr] Failed to reload /src/index.css. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:3000/@vite/client:175
+[  790091ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:3000/@vite/client:559
+[  790092ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  791558ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/node_modules/.vite/deps/chunk-PJEEZAML.js?v=bfaa4050:21550
+[  793190ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://127.0.0.1:3000/src/services/liveSync.js:89
+[  800856ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:3000/@vite/client:559
+[  800858ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  801861ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  802864ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  803868ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  804873ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  805877ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  806880ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  807883ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  808885ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  809888ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  810891ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  811894ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  812896ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  813899ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  814902ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  815906ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  816909ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  817912ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  818919ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  819921ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  820925ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  821929ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  822933ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/:0
+[  824575ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/node_modules/.vite/deps/chunk-PJEEZAML.js?v=bfaa4050:21550
+[  825025ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://127.0.0.1:3000/src/services/liveSync.js:89

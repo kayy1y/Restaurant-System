@@ -45,7 +45,7 @@ export default function Header({
 
   return (
     <header className="bg-[#2c1d13] text-[#f7f2e9] border-b border-[#c86414]/30 sticky top-0 z-40 px-4 py-2.5 shadow-2xl backdrop-blur-xl transition-all">
-      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div className="w-full px-2 sm:px-4 flex flex-wrap items-center justify-between gap-3">
         {/* Brand Identity La Vid Steak House & Pizza Decorativo */}
         <div className="flex items-center gap-3">
           <div className="bg-[#5d402b] p-2.5 rounded-2xl shadow-lg border border-[#c86414]/50 text-[#fbf7f0] font-black text-xl flex items-center justify-center transform hover:scale-105 transition-transform">
@@ -68,7 +68,7 @@ export default function Header({
         </div>
 
         {/* Control Bar: User Badge, Offline Mode, Clock */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 ml-auto">
           {/* Active Employee Identity Badge */}
           <div className="bg-[#1f140d] border border-[#4a3324] rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-md">
             {getRoleIcon(currentRole.id)}

@@ -142,8 +142,8 @@ export default function IncidentsModal({
               </div>
               <input
                 type="password"
-                maxLength={4}
-                placeholder="PIN de Gerente (9999)"
+                maxLength={8}
+                placeholder="PIN de Autorización Gerente"
                 value={managerPin}
                 onChange={(e) => setManagerPin(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-amber-400 font-mono font-bold"

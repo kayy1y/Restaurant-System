@@ -10,7 +10,7 @@ import {
   createAdminMenuProduct, getMenuCategories, setProductStatus, deleteMenuProduct, saveCategory 
 } from '../../services/menuService.js';
 import { getInventoryItems, getUnitsOfMeasure } from '../../services/inventoryService.js';
-import { getAllUsers, saveUser } from '../../services/authService.js';
+import { getAllUsers, saveUser, validateAdminPin, toggleUserStatus, deleteUser } from '../../services/authService.js';
 import { runAutomatedSystemTests } from '../../services/testRunner.js';
 import { runWorkerSwitchTestRunner } from '../../services/workerSwitchTestRunner.js';
 import { runBillingFlowTests } from '../../services/billingFlowTestRunner.js';
@@ -23,6 +23,12 @@ export default function AdminView() {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = React.useState(false);
   const [adminPinInput, setAdminPinInput] = React.useState('');
   const [pinError, setPinError] = React.useState('');
+
+  // Estado para gestión de usuarios
+  const [userForm, setUserForm] = React.useState({ id: '', name: '', pin: '', role_id: 'SALONERO', active: true });
+  const [userFormError, setUserFormError] = React.useState('');
+  const [userFormSuccess, setUserFormSuccess] = React.useState('');
+  const [editingUser, setEditingUser] = React.useState(null);
 
   const [categories, setCategories] = React.useState([]);
   const [products, setProducts] = React.useState([]);
@@ -101,14 +107,52 @@ export default function AdminView() {
     }
   }, [isAdminAuthenticated, loadAdminData]);
 
-  const handleAdminAuth = (e) => {
-    e.preventDefault();
+  const handleAdminAuth = async (e) => {
+    if (e) e.preventDefault();
     setPinError('');
-    if (adminPinInput.trim() === '9999') {
+    const res = await validateAdminPin(adminPinInput);
+    if (res.valid) {
       setIsAdminAuthenticated(true);
       setAdminPinInput('');
     } else {
-      setPinError('PIN de Administrador incorrecto (PIN Demo: 9999).');
+      setPinError(res.error || 'PIN de Administrador no válido.');
+    }
+  };
+
+  const handleSaveUserSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setUserFormError('');
+    setUserFormSuccess('');
+    try {
+      await saveUser(userForm, 'ADMINISTRADOR');
+      setUserFormSuccess(`¡Usuario "${userForm.name}" guardado exitosamente!`);
+      setUserForm({ id: '', name: '', pin: '', role_id: 'SALONERO', active: true });
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
+      setTimeout(() => setUserFormSuccess(''), 3000);
+    } catch (err) {
+      setUserFormError(err.message || 'Error al guardar usuario.');
+    }
+  };
+
+  const handleToggleUserStatus = async (userId) => {
+    try {
+      await toggleUserStatus(userId, 'ADMINISTRADOR');
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
+    } catch (err) {
+      alert(err.message || 'Error al cambiar estado de usuario.');
+    }
+  };
+
+  const handleDeleteUserClick = async (userId) => {
+    if (!window.confirm('¿Está seguro de que desea eliminar este usuario?')) return;
+    try {
+      await deleteUser(userId, 'ADMINISTRADOR');
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
+    } catch (err) {
+      alert(err.message || 'Error al eliminar usuario.');
     }
   };
 
@@ -213,14 +257,14 @@ export default function AdminView() {
           </div>
           <div>
             <h3 className="font-heading font-extrabold text-lg text-[#231710]">Sesión Administrativa Protegida</h3>
-            <p className="text-xs text-[#6e5a4b] mt-1">Ingresa el PIN de Administrador (PIN: 9999)</p>
+            <p className="text-xs text-[#6e5a4b] mt-1">Ingresa el código PIN de un Administrador activo</p>
           </div>
 
           <form onSubmit={handleAdminAuth} className="space-y-3">
             <input
               type="password"
-              maxLength={4}
-              placeholder="PIN Admin (9999)"
+              maxLength={8}
+              placeholder="Código PIN de Administrador"
               value={adminPinInput}
               onChange={(e) => setAdminPinInput(e.target.value)}
               className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl py-3 text-center text-lg font-mono font-bold tracking-widest text-[#5d402b] focus:outline-none focus:border-[#5d402b]"
@@ -400,7 +444,7 @@ export default function AdminView() {
 
       {/* Pestaña 2: Agregar Producto al Menú */}
       {activeTab === 'crear_producto' && (
-        <div className="glass-panel p-6 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] space-y-5 max-w-3xl mx-auto shadow-md">
+        <div className="glass-panel p-6 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] space-y-5 w-full shadow-md">
           <div className="border-b border-[#dac8b3] pb-3">
             <h3 className="font-heading font-extrabold text-base text-[#231710] flex items-center gap-2">
               <FolderPlus className="w-5 h-5 text-[#5d402b]" /> Registro de Nuevo Producto en el Menú
@@ -743,6 +787,175 @@ export default function AdminView() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Pestaña: Gestión de Usuarios, Roles y PINs Seguros */}
+      {activeTab === 'usuarios' && (
+        <div className="glass-panel p-5 rounded-3xl border border-[#dac8b3] bg-[#faf6ee] space-y-6 shadow-md">
+          <div className="flex flex-wrap justify-between items-center border-b border-[#dac8b3] pb-3 gap-3">
+            <div>
+              <h3 className="font-heading font-extrabold text-lg text-[#1f1209] flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#5d402b]" /> Gestión de Usuarios, Roles y PINs Seguros
+              </h3>
+              <p className="text-xs text-[#6e5a4b]">
+                Administre los empleados del restaurante, asigne roles de puesto y configure PINs protegidos con SHA-256.
+              </p>
+            </div>
+            {userFormSuccess && (
+              <span className="bg-[#46593a]/15 text-[#1f2d17] border border-[#46593a]/40 text-xs font-bold px-3 py-1.5 rounded-xl animate-in fade-in">
+                {userFormSuccess}
+              </span>
+            )}
+          </div>
+
+          {/* Formulario de Crear / Editar Usuario */}
+          <form onSubmit={handleSaveUserSubmit} className="bg-[#fffdf9] border border-[#dac8b3] p-4 rounded-2xl space-y-4 shadow-sm text-xs">
+            <h4 className="font-bold text-sm text-[#231710] flex items-center gap-1.5 border-b border-[#dac8b3] pb-2">
+              <Plus className="w-4 h-4 text-[#5d402b]" /> {userForm.id ? 'Modificar Usuario Existente' : 'Registrar Nuevo Empleado'}
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="font-bold text-[#231710] block mb-1">Nombre Completo del Empleado *</label>
+                <input
+                  type="text"
+                  placeholder="Ej. María Rodríguez"
+                  value={userForm.name}
+                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                  className="w-full bg-[#faf6ee] border border-[#dac8b3] rounded-xl px-3 py-2 text-[#231710] font-bold focus:outline-none focus:border-[#5d402b]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-[#231710] block mb-1">Rol de Puesto / Permisos *</label>
+                <select
+                  value={userForm.role_id}
+                  onChange={(e) => setUserForm({ ...userForm, role_id: e.target.value })}
+                  className="w-full bg-[#faf6ee] border border-[#dac8b3] rounded-xl px-3 py-2 text-[#231710] font-bold focus:outline-none focus:border-[#5d402b]"
+                >
+                  <option value="SALONERO">Salonero / Mesero</option>
+                  <option value="COCINA">Personal de Cocina & Barra</option>
+                  <option value="CAJERO">Cajero / Cobros</option>
+                  <option value="ADMINISTRADOR">Administrador General</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-[#231710] block mb-1">Código PIN (Mínimo 4 Dígitos) *</label>
+                <input
+                  type="password"
+                  maxLength={8}
+                  placeholder={userForm.id ? 'Nuevo PIN (o dejar en blanco)' : 'Ej. 4821'}
+                  value={userForm.pin}
+                  onChange={(e) => setUserForm({ ...userForm, pin: e.target.value })}
+                  className="w-full bg-[#faf6ee] border border-[#dac8b3] rounded-xl px-3 py-2 text-[#5d402b] font-mono font-bold focus:outline-none focus:border-[#5d402b]"
+                  required={!userForm.id}
+                />
+              </div>
+            </div>
+
+            {userFormError && (
+              <p className="text-xs text-[#802319] font-bold bg-[#802319]/10 p-2 rounded-xl border border-[#802319]/30">
+                {userFormError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#dac8b3]">
+              {userForm.id && (
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ id: '', name: '', pin: '', role_id: 'SALONERO', active: true })}
+                  className="py-2 px-4 bg-[#f5efe6] text-[#231710] font-bold rounded-xl border border-[#dac8b3]"
+                >
+                  Cancelar Edición
+                </button>
+              )}
+              <button
+                type="submit"
+                className="bg-[#5d402b] hover:bg-[#483120] text-[#fffdf9] font-extrabold px-5 py-2 rounded-xl shadow-md border border-[#3e2718]"
+              >
+                {userForm.id ? 'Guardar Cambios de Usuario' : '+ Crear Empleado'}
+              </button>
+            </div>
+          </form>
+
+          {/* Listado de Usuarios Existentes */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-sm text-[#231710]">Empleados Registrados ({users.length})</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {users.map(u => {
+                const isAdmin = u.role_id === 'ADMINISTRADOR';
+                return (
+                  <div
+                    key={u.id}
+                    className={`bg-[#fffdf9] border rounded-2xl p-4 space-y-3 shadow-sm flex flex-col justify-between transition-all ${
+                      u.active ? 'border-[#dac8b3]' : 'border-rose-200 bg-rose-50/50 opacity-75'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h5 className="font-bold text-sm text-[#231710] flex items-center gap-1.5">
+                          {u.name}
+                          {isAdmin && <ShieldCheck className="w-4 h-4 text-[#46593a]" title="Administrador General" />}
+                        </h5>
+                        <span className="text-[10px] font-mono text-[#6e5a4b] block">ID: {u.id}</span>
+                      </div>
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                        u.active
+                          ? 'bg-[#46593a]/15 text-[#24351c] border-[#46593a]/40'
+                          : 'bg-rose-100 text-rose-800 border-rose-300'
+                      }`}>
+                        {u.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-1">
+                      <p className="text-[#3d2717] font-semibold">
+                        Rol: <span className="font-mono text-[#5d402b] font-bold">{u.role_name || u.role_id}</span>
+                      </p>
+                      <p className="text-[10px] text-[#6e5a4b]">
+                        Protección: <span className="font-mono text-[#46593a] font-bold">Cifrado SHA-256</span>
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#dac8b3] flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUserForm({ id: u.id, name: u.name, pin: '', role_id: u.role_id, active: u.active })}
+                        className="flex-1 py-1.5 bg-[#f5efe6] hover:bg-[#e2d4c2] text-[#231710] font-bold text-[11px] rounded-xl border border-[#dac8b3] text-center"
+                      >
+                        Editar PIN/Rol
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleUserStatus(u.id)}
+                        className={`px-2.5 py-1.5 font-bold text-[11px] rounded-xl border ${
+                          u.active
+                            ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                        }`}
+                        title={u.active ? 'Desactivar acceso de usuario' : 'Activar acceso de usuario'}
+                      >
+                        {u.active ? 'Desactivar' : 'Activar'}
+                      </button>
+                      {u.id !== 'usr-admin' && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUserClick(u.id)}
+                          className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl"
+                          title="Eliminar usuario definitivamente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

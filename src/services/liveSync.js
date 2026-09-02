@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase.js';
 
 // URL del Servidor Socket.io en la Nube (Render.com)
 const SOCKET_SERVER_URL = 'https://gastroflow-socket-server.onrender.com';
+const LEGACY_SOCKET_SYNC_ENABLED = import.meta.env.VITE_ENABLE_LEGACY_SOCKET_SYNC === 'true';
 
 class LiveSyncEngine {
   constructor() {
@@ -32,7 +33,7 @@ class LiveSyncEngine {
   }
 
   _initSocketConnection() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !LEGACY_SOCKET_SYNC_ENABLED) return;
 
     try {
       const socketUrl = SOCKET_SERVER_URL.replace('http', 'ws');

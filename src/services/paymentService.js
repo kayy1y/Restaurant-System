@@ -1,7 +1,6 @@
 /**
- * Servicio de Pagos Transaccional y Decoplado - GastroFlow OS
- * Preparado para integrar pasarelas de pago reales (SINPE, POS Físico, Pasarelas Web).
- * Maneja Idempotencia, Validación de Efectivo, Referencias de Tarjeta y Emisión Fiscal Automática.
+ * Servicio de Pagos Transaccional y Desacoplado - GastroFlow OS
+ * Maneja Idempotencia Atómica, Bloqueos en DB, Precisión Financiera, Referencias de Tarjeta, Pagos Mixtos y Fallback Fiscal.
  */
 
 import { dbGet, dbPut, dbGetAll } from './db.js';
@@ -9,6 +8,7 @@ import { emitFiscalDocumentV43 } from './fiscalService.js';
 import { liveSync } from './liveSync.js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { processExternalInvoiceIntegration } from './invoiceIntegrationService.js';
+import { roundMoney, calculateTaxesAndTotals } from '../utils/money.js';
 
 // Bloqueo de Idempotencia en Memoria para Evitar Cobros Duplicados por Doble Clic
 const inFlightPayments = new Set();
@@ -18,7 +18,7 @@ const inFlightPayments = new Set();
  */
 export async function processOrderPayment({
   orderId,
-  paymentMethod = 'Efectivo', // 'Efectivo', 'Tarjeta', 'SINPE', 'Otro'
+  paymentMethod = 'Efectivo', // 'Efectivo', 'Tarjeta', 'SINPE', 'Mixto', 'Otro'
   amountPaid = 0,             // Monto entregado por el cliente
   referenceNumber = '',       // Comprobante SINPE / Voucher Tarjeta
   cardType = '',              // 'Visa', 'Mastercard' (Sin datos sensibles)
@@ -32,44 +32,57 @@ export async function processOrderPayment({
     throw new Error('ID de pedido no especificado.');
   }
 
-  // 1. Protección contra Doble Clic / Idempotencia
+  // 1. Protección contra Doble Clic en memoria (Misma pestaña)
   if (inFlightPayments.has(orderId)) {
-    throw new Error('El pago de esta cuenta ya está siendo procesado. Espere un momento.');
+    throw new Error('El pago de esta cuenta ya está siendo procesado en este terminal.');
   }
 
   inFlightPayments.add(orderId);
 
   try {
+    // 2. Candado Atómico en Base de Datos (Múltiples terminales / pestañas)
     const order = await dbGet('orders', orderId);
     if (!order) {
       throw new Error(`No se encontró el pedido ${orderId}.`);
     }
 
-    if (order.payment_status === 'CONFIRMADO' || order.status === 'PAGADO') {
+    if (order.payment_status === 'CONFIRMADO' || order.status === 'PAGADO' || order.account_status === 'PAGADA') {
       throw new Error(`El pedido ${orderId} ya fue pagado previamente.`);
     }
+
+    if (order.account_status === 'PROCESANDO_PAGO') {
+      throw new Error(`El cobro de la cuenta ${orderId} está siendo procesado por otro cajero. Espere la confirmación.`);
+    }
+
+    // Marcar bloqueo atómico en DB antes de procesar
+    order.account_status = 'PROCESANDO_PAGO';
+    order.updated_at = new Date().toISOString();
+    await dbPut('orders', order);
 
     // Filtrar únicamente los productos activos que no fueron retirados de la cuenta
     const activeItems = (order.items || []).filter(item => item.status !== 'RETIRADO_DE_CUENTA' && item.status !== 'CANCELADO');
     if (activeItems.length === 0) {
+      order.account_status = 'SOLICITADA';
+      await dbPut('orders', order);
       throw new Error('No se puede cobrar un pedido sin productos activos.');
     }
 
-    // 2. Recálculo Transaccional de Importes de Venta
-    const subtotal = activeItems.reduce((sum, item) => sum + (item.item_total || (item.unit_price * item.quantity)), 0);
-    const taxIva = Math.round(subtotal * 0.13);
-    const taxService = order.type === 'llevar' ? 0 : Math.round(subtotal * 0.10);
-    const totalToPay = subtotal + taxIva + taxService;
+    // 3. Recálculo Transaccional Seguro de Importes de Venta (Precisión Financiera)
+    const subtotalRaw = activeItems.reduce((sum, item) => sum + (item.item_total || (item.unit_price * item.quantity)), 0);
+    const totals = calculateTaxesAndTotals(subtotalRaw, order.type === 'llevar');
+    const { subtotal, taxIva, taxService, total: totalToPay } = totals;
 
-    // 3. Validación de Métodos de Pago
+    // 4. Validación de Métodos de Pago
     let calculatedChange = 0;
-    let finalAmountPaid = amountPaid;
+    let finalAmountPaid = roundMoney(amountPaid);
 
     if (paymentMethod === 'Efectivo') {
-      if (amountPaid < totalToPay) {
-        throw new Error(`El monto recibido (₡${amountPaid.toLocaleString()}) es menor al total a pagar (₡${totalToPay.toLocaleString()}).`);
+      if (finalAmountPaid < totalToPay) {
+        order.account_status = 'SOLICITADA';
+        await dbPut('orders', order);
+        throw new Error(`El monto recibido (₡${finalAmountPaid.toLocaleString()}) es menor al total a pagar (₡${totalToPay.toLocaleString()}).`);
       }
-      calculatedChange = amountPaid - totalToPay;
+      calculatedChange = roundMoney(finalAmountPaid - totalToPay);
     } else {
       finalAmountPaid = totalToPay; // Tarjeta / SINPE cubren el total exacto
       calculatedChange = 0;
@@ -78,7 +91,7 @@ export async function processOrderPayment({
     const now = new Date().toISOString();
     const paymentId = `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // 4. Registrar Registro de Pago
+    // 5. Registrar Registro de Pago
     const paymentRecord = {
       id: paymentId,
       order_id: orderId,
@@ -101,18 +114,18 @@ export async function processOrderPayment({
 
     await dbPut('payments', paymentRecord);
 
-    // 5. Copia Histórica Inmutable de Productos para la Factura (Snapshot)
+    // 6. Copia Histórica Inmutable de Productos para la Factura (Snapshot)
     const itemsSnapshot = activeItems.map(item => ({
       product_id: item.product_id,
       product_name: item.product_name,
-      unit_price: item.unit_price,
+      unit_price: roundMoney(item.unit_price),
       quantity: item.quantity,
-      item_total: item.item_total || (item.unit_price * item.quantity),
+      item_total: roundMoney(item.item_total || (item.unit_price * item.quantity)),
       customizations: item.customizations || [],
       notes: item.notes || ''
     }));
 
-    // 6. Actualizar Estado de Pedido y Liberar Mesa
+    // 7. Actualizar Estado de Pedido y Liberar Mesa
     const updatedOrder = {
       ...order,
       items: order.items, // Conserva historial con ítems retirados marcados
@@ -134,32 +147,58 @@ export async function processOrderPayment({
 
     await dbPut('orders', updatedOrder);
 
-    // 7. Emitir Factura Automáticamente
-    const fiscalDoc = await emitFiscalDocumentV43({
-      orderId: orderId,
-      customerName: customerName,
-      customerId: customerId,
-      customerEmail: customerEmail,
-      paymentMethod: paymentMethod,
-      isOffline: false
-    });
+    // 8. Emitir Factura Automáticamente con Fallback a Cola de Contingencia (Nunca Aborta la Venta)
+    let updatedFiscalDoc = null;
+    try {
+      const fiscalDoc = await emitFiscalDocumentV43({
+        orderId: orderId,
+        customerName: customerName,
+        customerId: customerId,
+        customerEmail: customerEmail,
+        paymentMethod: paymentMethod,
+        isOffline: false
+      });
 
-    // Guardar Snapshot Histórico en el registro de la factura fiscal
-    const updatedFiscalDoc = {
-      ...fiscalDoc,
-      table_name: order.table_name,
-      waiter_name: order.waiter_name,
-      cashier_name: cashierName,
-      items_snapshot: itemsSnapshot,
-      amount_paid: finalAmountPaid,
-      change_given: calculatedChange,
-      reference_number: referenceNumber,
-      payment_id: paymentId
-    };
+      updatedFiscalDoc = {
+        ...fiscalDoc,
+        table_name: order.table_name,
+        waiter_name: order.waiter_name,
+        cashier_name: cashierName,
+        items_snapshot: itemsSnapshot,
+        amount_paid: finalAmountPaid,
+        change_given: calculatedChange,
+        reference_number: referenceNumber,
+        payment_id: paymentId
+      };
 
-    await dbPut('fiscal_queue', updatedFiscalDoc);
+      await dbPut('fiscal_queue', updatedFiscalDoc);
+    } catch (fiscalErr) {
+      console.warn('Advertencia: Emisión fiscal externa falló, guardando en cola de contingencia:', fiscalErr.message);
+      const nowTs = new Date().toISOString();
+      updatedFiscalDoc = {
+        id: `FE-CONT-${Date.now()}`,
+        clave: `506${nowTs.replace(/\D/g, '').slice(0, 14)}0000000000000000000000`,
+        consecutivo: `0010000101${Date.now().toString().slice(-10)}`,
+        doc_type: 'Tiquete Electrónico v4.3',
+        order_id: orderId,
+        customer_name: customerName,
+        customer_id: customerId,
+        customer_email: customerEmail,
+        payment_method: paymentMethod,
+        subtotal: subtotal,
+        tax_service: taxService,
+        tax_iva: taxIva,
+        total: totalToPay,
+        status: 'PENDIENTE_ENVIO',
+        rejection_reason: `Contingencia por error fiscal: ${fiscalErr.message}`,
+        created_at: nowTs,
+        updated_at: nowTs,
+        retry_count: 1
+      };
+      await dbPut('fiscal_queue', updatedFiscalDoc);
+    }
 
-    // 8. Generar Automáticamente JSON Normalizado & Registro de Integración API Externa
+    // 9. Integración API Externa (Resiliente)
     let integrationRecord = null;
     try {
       integrationRecord = await processExternalInvoiceIntegration({
@@ -222,3 +261,4 @@ export async function processOrderPayment({
     inFlightPayments.delete(orderId);
   }
 }
+

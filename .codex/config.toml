@@ -1,0 +1,5 @@
+[mcp_servers.supabase]
+url = "https://mcp.supabase.com/mcp"
+
+[mcp_servers.supabase.tools.execute_sql]
+approval_mode = "approve"

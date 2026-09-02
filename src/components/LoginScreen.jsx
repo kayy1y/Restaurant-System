@@ -41,7 +41,7 @@ export default function LoginScreen({ onLoginSuccess }) {
 
     setIsSubmitting(true);
     try {
-      const session = await authenticateByPin(pinInput);
+      const session = await authenticateByPin(pinInput, selectedUser?.id);
       setIsSubmitting(false);
       onLoginSuccess(session);
     } catch (err) {
@@ -130,8 +130,8 @@ export default function LoginScreen({ onLoginSuccess }) {
               ))}
             </div>
             {selectedUser && (
-              <p className="text-[10px] text-[#6e5a4b] text-center mt-1 font-mono">
-                PIN para {selectedUser.name}: <strong className="text-[#5d402b]">{selectedUser.pin}</strong>
+              <p className="text-[10px] text-[#6e5a4b] text-center mt-1.5 font-mono font-semibold">
+                Ingresando como: <strong className="text-[#5d402b] font-bold">{selectedUser.name}</strong> ({getRoleBadge(selectedUser.role_id).label})
               </p>
             )}
           </div>

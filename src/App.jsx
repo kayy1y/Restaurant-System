@@ -21,13 +21,33 @@ import ReservationManager from './components/ReservationManager';
 
 import { ROLES, TABLES } from './data/mockData';
 import { seedUnifiedDatabase } from './services/db';
+import { getActiveSession, logout as clearActiveSession } from './services/authService';
 import { getUserPreferences, applyThemeToDOM } from './services/themeService';
 import { updateReservationStatus } from './services/reservationService';
 
+function getRoleForSession(session) {
+  const roleId = session?.user?.role_id;
+  return ROLES.find(r => r.id.toUpperCase() === String(roleId || '').toUpperCase()) || ROLES[0];
+}
+
+function getDefaultTabForRole(roleId) {
+  switch (String(roleId || '').toUpperCase()) {
+    case 'COCINA':
+    case 'BARRA':
+      return 'cocina';
+    case 'CAJERO':
+      return 'caja';
+    case 'INVENTARIO':
+      return 'inventario';
+    default:
+      return 'mesas';
+  }
+}
+
 export default function App() {
-  const [activeSession, setActiveSession] = React.useState(null);
-  const [currentRole, setCurrentRole] = React.useState(ROLES[0]);
-  const [activeTab, setActiveTab] = React.useState('mesas');
+  const [activeSession, setActiveSession] = React.useState(() => getActiveSession());
+  const [currentRole, setCurrentRole] = React.useState(() => getRoleForSession(getActiveSession()));
+  const [activeTab, setActiveTab] = React.useState(() => getDefaultTabForRole(getActiveSession()?.user?.role_id));
   const [isOffline, setIsOffline] = React.useState(false);
   const [activeBranch, setActiveBranch] = React.useState('001');
   const [isSidebarCompact, setIsSidebarCompact] = React.useState(false);
@@ -42,6 +62,31 @@ export default function App() {
     getUserPreferences('global').then(prefs => applyThemeToDOM(prefs));
   }, []);
 
+  React.useEffect(() => {
+    if (!activeSession?.user?.id) {
+      setCurrentRole(ROLES[0]);
+      setIsSidebarCompact(false);
+      return;
+    }
+
+    const matchedRole = getRoleForSession(activeSession);
+    setCurrentRole(matchedRole);
+    setActiveTab(prevTab => prevTab || getDefaultTabForRole(activeSession.user.role_id));
+
+    let isCancelled = false;
+    getUserPreferences(activeSession.user.id)
+      .then(userPrefs => {
+        if (isCancelled) return;
+        applyThemeToDOM(userPrefs);
+        setIsSidebarCompact(userPrefs.sidebar_style === 'compact');
+      })
+      .catch(err => console.error('Error cargando preferencias del usuario:', err));
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeSession]);
+
   // Al autenticar empleado en la pantalla inicial: Cargar sus preferencias personales de tema
   const handleLoginSuccess = async (session) => {
     setActiveSession(session);
@@ -52,10 +97,20 @@ export default function App() {
     applyThemeToDOM(userPrefs);
     if (userPrefs.sidebar_style === 'compact') setIsSidebarCompact(true);
 
-    if (session.user.role_id === 'SALONERO') setActiveTab('mesas');
-    else if (session.user.role_id === 'COCINA') setActiveTab('cocina');
-    else if (session.user.role_id === 'CAJERO') setActiveTab('caja');
-    else setActiveTab('mesas');
+    setActiveTab(getDefaultTabForRole(session.user.role_id));
+  };
+
+  const handleLogout = () => {
+    clearActiveSession();
+    setActiveSession(null);
+    setCurrentRole(ROLES[0]);
+    setActiveTab('mesas');
+    getUserPreferences('global')
+      .then(prefs => {
+        applyThemeToDOM(prefs);
+        setIsSidebarCompact(prefs.sidebar_style === 'compact');
+      })
+      .catch(err => console.error('Error restaurando preferencias globales:', err));
   };
 
   // Acción Sentar Cliente desde el módulo de Reservas: cambia mesa a OCUPADA y pasa a la vista POS
@@ -107,12 +162,12 @@ export default function App() {
         activeBranch={activeBranch}
         setActiveBranch={setActiveBranch}
         pendingFiscalQueue={0}
-        onLogout={() => setActiveSession(null)}
+        onLogout={handleLogout}
         onOpenAppearance={() => setActiveTab('apariencia')}
       />
 
       {/* Main Layout: Sidebar Left, Content Right */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden w-full px-2 sm:px-4">
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -123,7 +178,7 @@ export default function App() {
 
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full relative">
           {/* Barra de Herramientas Superior: Incidencias */}
-          <div className="mb-4 flex justify-end items-center gap-2">
+          <div className="mb-4 flex justify-end items-center gap-2 ml-auto">
             <button
               onClick={() => setShowIncidentModal(true)}
               className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"

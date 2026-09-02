@@ -72,7 +72,7 @@ export default function AppearanceSettings({ activeUser, onPrefsChange }) {
   const contrastText = getContrastYIQ(prefs.primary_color);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-10">
+    <div className="space-y-6 w-full pb-10">
       {/* Toast Notificación */}
       {saveToast && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#3d2719] text-[#fbf7f0] border border-[#a88a6d] font-bold text-xs px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-4">

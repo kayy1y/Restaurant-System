@@ -7,6 +7,7 @@ import { dbGetAll, dbGet, dbPut } from './db.js';
 import { recordStockMovement } from './inventoryService.js';
 import { getProductRecipe } from './menuService.js';
 import { liveSync } from './liveSync.js';
+import { validateAuthorizationPin } from './authService.js';
 
 export const INCIDENT_CATEGORIES = [
   { id: 'PRODUCTO_FALTANTE', label: 'Faltó un producto del pedido', requiresAuth: false, stockEffect: 'REMOVER_O_REESTABLECER' },
@@ -38,8 +39,9 @@ export async function processIncident({
 
   // Requiere autorización si la categoría lo exige y el rol no es Admin/Gerente
   if (catConfig.requiresAuth && currentRole.id !== 'ADMINISTRADOR' && currentRole.id !== 'gerente') {
-    if (!managerPin || managerPin !== '9999') {
-      throw new Error(`La incidencia '${catConfig.label}' requiere código PIN de autorización de Gerente o Administrador.`);
+    const auth = await validateAuthorizationPin(managerPin, ['ADMINISTRADOR', 'GERENTE']);
+    if (!auth.valid) {
+      throw new Error(`La incidencia '${catConfig.label}' requiere código PIN de autorización de Gerente o Administrador activo. ${auth.error || ''}`);
     }
   }
 

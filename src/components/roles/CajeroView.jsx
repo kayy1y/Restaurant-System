@@ -532,12 +532,12 @@ export default function CajeroView() {
 
               <div>
                 <label className="text-xs font-extrabold text-[#1f1209] block mb-1 font-mono">
-                  PIN de Autorización (PIN: 9999 si ya se preparó)
+                  PIN de Autorización (Requerido si el plato ya fue preparado)
                 </label>
                 <input
                   type="password"
-                  maxLength={4}
-                  placeholder="PIN Gerente (9999)"
+                  maxLength={8}
+                  placeholder="PIN Autorización Gerente"
                   value={managerPin}
                   onChange={(e) => setManagerPin(e.target.value)}
                   className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-center text-xs font-mono font-bold text-[#5d402b]"

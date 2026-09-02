@@ -1,0 +1,46 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]: 🍷
+    - heading "La Vid Steak House & Pizza" [level=1] [ref=e7]
+    - paragraph [ref=e8]: Selecciona tu usuario e ingresa tu código PIN de 4 dígitos
+  - generic [ref=e9]:
+    - generic [ref=e10]: 1. Seleccionar Empleado o Puesto
+    - generic [ref=e11]:
+      - button "Laura Salonero" [ref=e12] [cursor=pointer]:
+        - generic [ref=e16]: Laura
+        - generic [ref=e17]: Salonero
+      - button "Carlos Salonero" [ref=e18] [cursor=pointer]:
+        - generic [ref=e22]: Carlos
+        - generic [ref=e23]: Salonero
+      - button "Andrea Salonero" [ref=e24] [cursor=pointer]:
+        - generic [ref=e28]: Andrea
+        - generic [ref=e29]: Salonero
+      - button "Chef Mario Cocina KDS" [ref=e30] [cursor=pointer]:
+        - generic [ref=e33]: Chef Mario
+        - generic [ref=e34]: Cocina KDS
+      - button "Ana Cajera Cajero" [ref=e35] [cursor=pointer]:
+        - generic [ref=e38]: Ana Cajera
+        - generic [ref=e39]: Cajero
+      - button "Admin General Administrador" [ref=e40] [cursor=pointer]:
+        - generic [ref=e44]: Admin General
+        - generic [ref=e45]: Administrador
+  - generic [ref=e46]:
+    - generic [ref=e47]:
+      - generic [ref=e48]: 2. Código PIN de 4 Dígitos
+      - paragraph [ref=e54]:
+        - text: "Ingresando como:"
+        - strong [ref=e55]: Laura
+        - text: (Salonero)
+    - generic [ref=e56]:
+      - button "1" [ref=e57] [cursor=pointer]
+      - button "2" [ref=e58] [cursor=pointer]
+      - button "3" [ref=e59] [cursor=pointer]
+      - button "4" [ref=e60] [cursor=pointer]
+      - button "5" [ref=e61] [cursor=pointer]
+      - button "6" [ref=e62] [cursor=pointer]
+      - button "7" [ref=e63] [cursor=pointer]
+      - button "8" [ref=e64] [cursor=pointer]
+      - button "9" [ref=e65] [cursor=pointer]
+      - button "Borrar" [ref=e66] [cursor=pointer]
+      - button "0" [ref=e67] [cursor=pointer]
+      - button "Ingresar" [disabled] [ref=e68]

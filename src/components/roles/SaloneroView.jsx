@@ -26,6 +26,7 @@ export default function SaloneroView({ activeSessionUser }) {
   const [selectedCategory, setSelectedCategory] = React.useState('ALL');
   
   const [readyNotification, setReadyNotification] = React.useState(null);
+  const [syncWarning, setSyncWarning] = React.useState(null);
 
   // Mesa activa seleccionada
   const [activeTable, setActiveTable] = React.useState(null);
@@ -152,14 +153,16 @@ export default function SaloneroView({ activeSessionUser }) {
 
     setIsSubmitting(true);
     try {
+      let savedOrder = null;
+
       if (existingOrder) {
-        await addItemToActiveOrder({
+        savedOrder = await addItemToActiveOrder({
           orderId: existingOrder.id,
           items: cartItems,
           waiterName: activeUser.name
         });
       } else {
-        await createOrderWithStockDeduction({
+        const createdOrder = await createOrderWithStockDeduction({
           tableId: activeTable.id,
           tableName: activeTable.name,
           waiterId: activeUser.id,
@@ -168,6 +171,13 @@ export default function SaloneroView({ activeSessionUser }) {
           items: cartItems,
           isTakeout: activeTable.id === 'TAKEOUT'
         }, { id: 'SALONERO', name: activeUser.name });
+        savedOrder = createdOrder.order;
+      }
+
+      if (savedOrder?.cloud_sync_status === 'ERROR') {
+        setSyncWarning(savedOrder.cloud_sync_error || 'El pedido se guardo localmente, pero no logro sincronizar con Supabase.');
+      } else {
+        setSyncWarning(null);
       }
 
       setIsSubmitting(false);
@@ -179,6 +189,16 @@ export default function SaloneroView({ activeSessionUser }) {
       alert('Error en pedido: ' + err.message);
     }
   };
+
+  React.useEffect(() => {
+    if (!syncWarning) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setSyncWarning(null);
+    }, 8000);
+
+    return () => window.clearTimeout(timer);
+  }, [syncWarning]);
 
   const handleConfirmRemoveItem = async (e) => {
     e.preventDefault();
@@ -266,6 +286,13 @@ export default function SaloneroView({ activeSessionUser }) {
           >
             Entregado a la Mesa
           </button>
+        </div>
+      )}
+
+      {syncWarning && (
+        <div className="bg-amber-100 border border-amber-300 p-4 rounded-2xl text-amber-950 shadow-sm">
+          <p className="font-bold text-sm">Pedido guardado localmente, pero con fallo de sincronizacion en Supabase.</p>
+          <p className="text-xs mt-1 break-words">{syncWarning}</p>
         </div>
       )}
 
@@ -598,8 +625,8 @@ export default function SaloneroView({ activeSessionUser }) {
                 </label>
                 <input
                   type="password"
-                  maxLength={4}
-                  placeholder="PIN Gerente (9999)"
+                  maxLength={8}
+                  placeholder="PIN Autorización Gerente"
                   value={managerPin}
                   onChange={(e) => setManagerPin(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-amber-400"
