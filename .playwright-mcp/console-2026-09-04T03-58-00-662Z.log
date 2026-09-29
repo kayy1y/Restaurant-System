@@ -1,0 +1,22 @@
+[      92ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/node_modules/.vite/deps/chunk-PJEEZAML.js?v=a98c4f05:21550
+[     108ms] [WARNING] ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. @ http://127.0.0.1:3000/node_modules/.vite/deps/react-router-dom.js?v=3cf37398:4392
+[     108ms] [WARNING] ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. @ http://127.0.0.1:3000/node_modules/.vite/deps/react-router-dom.js?v=3cf37398:4392
+[     594ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://dxgchsqewihqgwfkuzxs.supabase.co/rest/v1/rpc/gastroflow_list_login_profiles:0
+[     594ms] [ERROR] Error cargando usuarios: Error: Could not find the function public.gastroflow_list_login_profiles without parameters in the schema cache
+    at callRpc (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:78:11)
+    at async getAllUsers (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:290:18) @ http://127.0.0.1:3000/src/components/LoginScreen.jsx?t=1788494143512:34
+[     602ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://dxgchsqewihqgwfkuzxs.supabase.co/rest/v1/rpc/gastroflow_list_login_profiles:0
+[     602ms] [ERROR] Error cargando usuarios: Error: Could not find the function public.gastroflow_list_login_profiles without parameters in the schema cache
+    at callRpc (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:78:11)
+    at async getAllUsers (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:290:18) @ http://127.0.0.1:3000/src/components/LoginScreen.jsx?t=1788494143512:34
+[     814ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://127.0.0.1:3000/src/services/liveSync.js:95
+[   61209ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/node_modules/.vite/deps/chunk-PJEEZAML.js?v=a98c4f05:21550
+[   61444ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://dxgchsqewihqgwfkuzxs.supabase.co/rest/v1/rpc/gastroflow_list_login_profiles:0
+[   61444ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://dxgchsqewihqgwfkuzxs.supabase.co/rest/v1/rpc/gastroflow_list_login_profiles:0
+[   61444ms] [ERROR] Error cargando usuarios: Error: Could not find the function public.gastroflow_list_login_profiles without parameters in the schema cache
+    at callRpc (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:78:11)
+    at async getAllUsers (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:290:18) @ http://127.0.0.1:3000/src/components/LoginScreen.jsx?t=1788494341707:34
+[   61444ms] [ERROR] Error cargando usuarios: Error: Could not find the function public.gastroflow_list_login_profiles without parameters in the schema cache
+    at callRpc (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:78:11)
+    at async getAllUsers (http://127.0.0.1:3000/src/services/authService.js?t=1788494143478:290:18) @ http://127.0.0.1:3000/src/components/LoginScreen.jsx?t=1788494341707:34
+[   61694ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://127.0.0.1:3000/src/services/liveSync.js:95

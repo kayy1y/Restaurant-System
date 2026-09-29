@@ -1,0 +1,48 @@
+- generic [ref=f4e4]:
+  - generic [ref=f4e5]:
+    - generic [ref=f4e6]: 🍷
+    - heading "La Vid Steak House & Pizza" [level=1] [ref=f4e7]
+    - paragraph [ref=f4e8]: Selecciona tu usuario e ingresa tu código PIN de 4 dígitos
+  - generic [ref=f4e9]:
+    - paragraph [ref=f4e10]: 1. Seleccionar Empleado o Puesto
+    - generic [ref=f4e11]:
+      - button "Laura Salonero" [ref=f4e12] [cursor=pointer]:
+        - generic [ref=f4e16]: Laura
+        - generic [ref=f4e17]: Salonero
+      - button "Carlos Salonero" [ref=f4e18] [cursor=pointer]:
+        - generic [ref=f4e22]: Carlos
+        - generic [ref=f4e23]: Salonero
+      - button "Andrea Salonero" [ref=f4e24] [cursor=pointer]:
+        - generic [ref=f4e28]: Andrea
+        - generic [ref=f4e29]: Salonero
+      - button "Chef Mario Cocina KDS" [ref=f4e30] [cursor=pointer]:
+        - generic [ref=f4e33]: Chef Mario
+        - generic [ref=f4e34]: Cocina KDS
+      - button "Ana Cajera Cajero" [ref=f4e35] [cursor=pointer]:
+        - generic [ref=f4e38]: Ana Cajera
+        - generic [ref=f4e39]: Cajero
+      - button "Admin General Administrador" [ref=f4e40] [cursor=pointer]:
+        - generic [ref=f4e44]: Admin General
+        - generic [ref=f4e45]: Administrador
+  - generic [ref=f4e46]:
+    - textbox [ref=f4e47]: Laura
+    - generic [ref=f4e48]:
+      - generic [ref=f4e49]: 2. Código PIN de 4 Dígitos
+      - textbox "2. Código PIN de 4 Dígitos" [ref=f4e50]
+      - paragraph [ref=f4e56]:
+        - text: "Ingresando como:"
+        - strong [ref=f4e57]: Laura
+        - text: (Salonero)
+    - generic [ref=f4e58]:
+      - button "Ingresar dígito 1" [ref=f4e59] [cursor=pointer]: "1"
+      - button "Ingresar dígito 2" [ref=f4e60] [cursor=pointer]: "2"
+      - button "Ingresar dígito 3" [ref=f4e61] [cursor=pointer]: "3"
+      - button "Ingresar dígito 4" [ref=f4e62] [cursor=pointer]: "4"
+      - button "Ingresar dígito 5" [ref=f4e63] [cursor=pointer]: "5"
+      - button "Ingresar dígito 6" [ref=f4e64] [cursor=pointer]: "6"
+      - button "Ingresar dígito 7" [ref=f4e65] [cursor=pointer]: "7"
+      - button "Ingresar dígito 8" [ref=f4e66] [cursor=pointer]: "8"
+      - button "Ingresar dígito 9" [ref=f4e67] [cursor=pointer]: "9"
+      - button "Borrar PIN" [ref=f4e68] [cursor=pointer]: Borrar
+      - button "Ingresar dígito 0" [ref=f4e69] [cursor=pointer]: "0"
+      - button "Ingresar" [disabled] [ref=f4e70]

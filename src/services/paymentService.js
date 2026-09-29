@@ -9,16 +9,37 @@ import { liveSync } from './liveSync.js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { processExternalInvoiceIntegration } from './invoiceIntegrationService.js';
 import { roundMoney, calculateTaxesAndTotals } from '../utils/money.js';
+import { generateUuid } from '../utils/id.js';
 
 // Bloqueo de Idempotencia en Memoria para Evitar Cobros Duplicados por Doble Clic
 const inFlightPayments = new Set();
+
+function normalizePaymentMethod(paymentMethod) {
+  switch (String(paymentMethod || '').trim()) {
+    case 'Efectivo Colones':
+    case 'Efectivo':
+      return 'Efectivo';
+    case 'Tarjeta':
+    case 'Tarjeta POS':
+      return 'Tarjeta POS';
+    case 'SINPE':
+    case 'SINPE Movil':
+    case 'SINPE Móvil':
+      return 'SINPE Movil';
+    case 'Dolares':
+    case 'Dólares':
+      return 'Dolares';
+    default:
+      throw new Error('Método de pago no soportado para registro seguro.');
+  }
+}
 
 /**
  * Procesar Pago Transaccional de Pedido
  */
 export async function processOrderPayment({
   orderId,
-  paymentMethod = 'Efectivo', // 'Efectivo', 'Tarjeta', 'SINPE', 'Mixto', 'Otro'
+  paymentMethod = 'Efectivo',
   amountPaid = 0,             // Monto entregado por el cliente
   referenceNumber = '',       // Comprobante SINPE / Voucher Tarjeta
   cardType = '',              // 'Visa', 'Mastercard' (Sin datos sensibles)
@@ -31,6 +52,8 @@ export async function processOrderPayment({
   if (!orderId) {
     throw new Error('ID de pedido no especificado.');
   }
+
+  const normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
 
   // 1. Protección contra Doble Clic en memoria (Misma pestaña)
   if (inFlightPayments.has(orderId)) {
@@ -76,7 +99,7 @@ export async function processOrderPayment({
     let calculatedChange = 0;
     let finalAmountPaid = roundMoney(amountPaid);
 
-    if (paymentMethod === 'Efectivo') {
+    if (normalizedPaymentMethod === 'Efectivo') {
       if (finalAmountPaid < totalToPay) {
         order.account_status = 'SOLICITADA';
         await dbPut('orders', order);
@@ -89,7 +112,7 @@ export async function processOrderPayment({
     }
 
     const now = new Date().toISOString();
-    const paymentId = `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const paymentId = generateUuid();
 
     // 5. Registrar Registro de Pago
     const paymentRecord = {
@@ -97,7 +120,7 @@ export async function processOrderPayment({
       order_id: orderId,
       table_id: order.table_id,
       table_name: order.table_name,
-      payment_method: paymentMethod,
+      payment_method: normalizedPaymentMethod,
       amount_paid: finalAmountPaid,
       total_amount: totalToPay,
       change_given: calculatedChange,
@@ -155,7 +178,7 @@ export async function processOrderPayment({
         customerName: customerName,
         customerId: customerId,
         customerEmail: customerEmail,
-        paymentMethod: paymentMethod,
+        paymentMethod: normalizedPaymentMethod,
         isOffline: false
       });
 
@@ -184,7 +207,7 @@ export async function processOrderPayment({
         customer_name: customerName,
         customer_id: customerId,
         customer_email: customerEmail,
-        payment_method: paymentMethod,
+        payment_method: normalizedPaymentMethod,
         subtotal: subtotal,
         tax_service: taxService,
         tax_iva: taxIva,
@@ -222,7 +245,7 @@ export async function processOrderPayment({
         await supabase.from('pagos').insert({
           pedido_id: orderId,
           cajero_nombre: cashierName,
-          metodo_pago: paymentMethod,
+          metodo_pago: normalizedPaymentMethod,
           nombre_cliente: customerName,
           subtotal: subtotal,
           impuesto_iva: taxIva,
@@ -261,4 +284,3 @@ export async function processOrderPayment({
     inFlightPayments.delete(orderId);
   }
 }
-

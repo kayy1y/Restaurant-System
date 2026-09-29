@@ -1,42 +1,49 @@
 import { createClient } from '@supabase/supabase-js';
+import { getStoredSessionToken } from './gastroflowSession.js';
 
-// URL y Clave Pública Oficiales para GastroFlow OS en Supabase
-const DEFAULT_SUPABASE_URL = 'https://dxgchsqewihqgwfkuzxs.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'sb_publishable_PRd-Uw-TDaPLrA77jsQ_gw_jqniz95Y';
+const env = import.meta.env || {};
 
-// Resolver URL buscando en NEXT_PUBLIC_..., VITE_... o fallback directo
-const resolveUrl = () => {
-  const env = import.meta.env || {};
-  const processEnv = typeof process !== 'undefined' ? process.env || {} : {};
+export const supabaseUrl = (
+  env.VITE_SUPABASE_URL ||
+  env.NEXT_PUBLIC_SUPABASE_URL ||
+  ''
+).trim();
 
-  return (
-    env.NEXT_PUBLIC_SUPABASE_URL ||
-    processEnv.NEXT_PUBLIC_SUPABASE_URL ||
-    env.VITE_SUPABASE_URL ||
-    env.VITE_SUPABASEURL ||
-    env.SUPABASE_URL ||
-    DEFAULT_SUPABASE_URL
-  ).trim();
-};
+export const supabaseKey = (
+  env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  env.VITE_SUPABASE_ANON_KEY ||
+  env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  ''
+).trim();
 
-// Resolver Clave Pública buscando en NEXT_PUBLIC_..., VITE_... o fallback directo
-const resolveKey = () => {
-  const env = import.meta.env || {};
-  const processEnv = typeof process !== 'undefined' ? process.env || {} : {};
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
 
-  return (
-    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    processEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    env.VITE_SUPABASE_ANON_KEY ||
-    env.VITE_SUPABASEKEY ||
-    env.SUPABASE_KEY ||
-    DEFAULT_SUPABASE_KEY
-  ).trim();
-};
+async function gastroflowSessionFetch(input, init = {}) {
+  const token = getStoredSessionToken();
+  const requestHeaders = input instanceof Request ? input.headers : undefined;
+  const headers = new Headers(init.headers || requestHeaders || {});
 
-export const supabaseUrl = resolveUrl();
-export const supabaseKey = resolveKey();
+  if (token) {
+    headers.set('x-gastroflow-session', token);
+  } else {
+    headers.delete('x-gastroflow-session');
+  }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
-export const isSupabaseConfigured = true;
+  return fetch(input, {
+    ...init,
+    headers
+  });
+}
+
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: false
+      },
+      global: {
+        fetch: gastroflowSessionFetch
+      }
+    })
+  : null;

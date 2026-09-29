@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase.js';
 // URL del Servidor Socket.io en la Nube (Render.com)
 const SOCKET_SERVER_URL = 'https://gastroflow-socket-server.onrender.com';
 const LEGACY_SOCKET_SYNC_ENABLED = import.meta.env.VITE_ENABLE_LEGACY_SOCKET_SYNC === 'true';
+const SUPABASE_POSTGRES_CHANGES_ENABLED = import.meta.env.VITE_ENABLE_SUPABASE_POSTGRES_CHANGES === 'true';
 
 class LiveSyncEngine {
   constructor() {
@@ -65,31 +66,36 @@ class LiveSyncEngine {
 
     try {
       // Suscripción al Canal en Tiempo Real de Supabase
-      this.supabaseChannel = supabase
+      let channel = supabase
         .channel('gastroflow_realtime_channel')
         .on('broadcast', { event: 'gastroflow_event' }, async (response) => {
           if (response.payload && response.payload.senderId !== this.deviceId) {
             await this._handleIncomingCloudEvent(response.payload.type, response.payload.payload, false);
           }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, async (payload) => {
-          if (payload.new) {
-            await this._handleIncomingCloudEvent('ORDER_UPDATED', { order: payload.new }, false);
-          }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'detalles_pedido' }, async (payload) => {
-          if (payload.new) {
-            await this._handleIncomingCloudEvent('KDS_STATUS_CHANGED', payload.new, false);
-          }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, async (payload) => {
-          await this._handleIncomingCloudEvent('RESERVATION_UPDATED', payload.new || payload.old, false);
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('📡 Suscrito exitosamente a Supabase Realtime Channel');
-          }
         });
+
+      if (SUPABASE_POSTGRES_CHANGES_ENABLED) {
+        channel = channel
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, async (payload) => {
+            if (payload.new) {
+              await this._handleIncomingCloudEvent('ORDER_UPDATED', { order: payload.new }, false);
+            }
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'detalles_pedido' }, async (payload) => {
+            if (payload.new) {
+              await this._handleIncomingCloudEvent('KDS_STATUS_CHANGED', payload.new, false);
+            }
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, async (payload) => {
+            await this._handleIncomingCloudEvent('RESERVATION_UPDATED', payload.new || payload.old, false);
+          });
+      }
+
+      this.supabaseChannel = channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('📡 Suscrito exitosamente a Supabase Realtime Channel');
+        }
+      });
     } catch (err) {
       console.log('Notificación Supabase Realtime (Esperando credenciales en .env.local):', err.message);
     }

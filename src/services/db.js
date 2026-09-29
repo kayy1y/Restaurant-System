@@ -3,7 +3,7 @@
  * Administra Usuarios, Roles, Permisos, Menú La Vid 2025, Recetas, Inventario, Pedidos, Incidencias, Modificadores por Producto y Audios.
  */
 
-import { LAVID_CATEGORIES, LAVID_PRODUCTS, LAVID_MODIFIERS } from '../data/lavidMenuData.js';
+import { LAVID_CATEGORIES, LAVID_PRODUCTS } from '../data/lavidMenuData.js';
 import { DEFAULT_UNITS, DEFAULT_CATEGORIES } from './inventoryDb.js';
 
 const DB_NAME = 'GastroFlow_Unified_DB';
@@ -298,9 +298,13 @@ export async function seedUnifiedDatabase() {
     }
   }
 
-  // Sincronizar modificadores oficiales
-  for (const m of LAVID_MODIFIERS) {
-    await dbPut('product_modifiers', m);
+  // Retirar opciones globales heredadas. Solo permanecen modificadores
+  // vinculados explícitamente a un producto por el administrador.
+  const legacyModifiers = await dbGetAll('product_modifiers');
+  for (const modifier of legacyModifiers) {
+    if (!modifier.product_id && !modifier.productId) {
+      await dbDelete('product_modifiers', modifier.id);
+    }
   }
 
   const units = await dbGetAll('units_of_measure');

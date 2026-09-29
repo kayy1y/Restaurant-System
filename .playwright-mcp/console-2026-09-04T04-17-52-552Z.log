@@ -1,0 +1,6 @@
+[      80ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3001/node_modules/.vite/deps/chunk-PJEEZAML.js?v=cc0b833e:21550
+[  348515ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:3001/node_modules/.vite/deps/chunk-PJEEZAML.js?v=cc0b833e:21550
+[  358841ms] [WARNING] Excepción al consultar Supabase reservas: Cannot read properties of null (reading 'from') @ http://127.0.0.1:3001/src/services/reservationService.js:157
+[  358841ms] [WARNING] Excepción al consultar Supabase reservas: Cannot read properties of null (reading 'from') @ http://127.0.0.1:3001/src/services/reservationService.js:157
+[  363827ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:3001/#/app/devoluciones:0
+[  367526ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:3001/#/app/admin:0

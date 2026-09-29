@@ -44,25 +44,24 @@ export default function Header({
   };
 
   return (
-    <header className="bg-[#2c1d13] text-[#f7f2e9] border-b border-[#c86414]/30 sticky top-0 z-40 px-4 py-2.5 shadow-2xl backdrop-blur-xl transition-all">
-      <div className="w-full px-2 sm:px-4 flex flex-wrap items-center justify-between gap-3">
+    <header className="bg-[var(--bg-sidebar)] text-[var(--sidebar-text)] border-b border-slate-700 sticky top-0 z-40 px-3 sm:px-5 py-2.5 shadow-lg backdrop-blur-xl transition-all">
+      <div className="w-full max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-3">
         {/* Brand Identity La Vid Steak House & Pizza Decorativo */}
         <div className="flex items-center gap-3">
-          <div className="bg-[#5d402b] p-2.5 rounded-2xl shadow-lg border border-[#c86414]/50 text-[#fbf7f0] font-black text-xl flex items-center justify-center transform hover:scale-105 transition-transform">
-            🍷
+          <div className="bg-[var(--primary-color)] p-2.5 rounded-xl border border-[var(--border-color)] text-white font-semibold text-lg flex items-center justify-center">
+            LV
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-heading font-extrabold text-lg tracking-tight text-[#f7f2e9] flex items-center gap-1.5">
+              <h1 className="font-heading font-extrabold text-base sm:text-lg tracking-tight text-white flex items-center gap-1.5">
                 {identity.name}
-                <span className="text-xs text-[#c86414]" title="Steakhouse Premium">🥩</span>
               </h1>
-              <span className="bg-[#c86414]/20 text-[#f7f2e9] border border-[#c86414]/40 text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold shadow-sm">
-                La Fortuna, CR
+              <span className="hidden sm:inline-flex bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold">
+                OPERACIÓN
               </span>
             </div>
-            <p className="text-xs text-[#c4b1a1] font-medium flex items-center gap-1">
-              {identity.address} • <span className="font-mono text-[#d8c4a7] font-semibold">GastroFlow OS v4.3</span>
+            <p className="hidden sm:flex text-xs text-slate-400 font-medium items-center gap-1">
+              {identity.address} <span className="font-mono text-slate-300 font-semibold">• GastroFlow OS</span>
             </p>
           </div>
         </div>
@@ -70,27 +69,27 @@ export default function Header({
         {/* Control Bar: User Badge, Offline Mode, Clock */}
         <div className="flex flex-wrap items-center gap-2.5 ml-auto">
           {/* Active Employee Identity Badge */}
-          <div className="bg-[#1f140d] border border-[#4a3324] rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-md">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-md">
             {getRoleIcon(currentRole.id)}
             <div className="text-xs">
-              <p className="font-bold text-[#f7f2e9] flex items-center gap-1">
+              <p className="font-bold text-white flex items-center gap-1">
                 {activeSessionUser?.name || 'Empleado'}
               </p>
-              <p className="text-[10px] text-[#d8c4a7] font-mono font-semibold">
+              <p className="text-[10px] text-slate-400 font-mono font-semibold">
                 Rol: {currentRole.name || currentRole.id}
               </p>
             </div>
           </div>
 
           {/* Sistema En Línea */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm bg-[#46593a]/30 text-[#d4e6c8] border-[#46593a]">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
             <Wifi className="w-3.5 h-3.5 text-emerald-300" />
             <span>EN LÍNEA</span>
           </div>
 
           {/* Real-time Clock */}
-          <div className="hidden lg:flex items-center gap-1.5 bg-[#1f140d] border border-[#4a3324] px-3 py-1.5 rounded-xl text-xs text-[#d8c4a7] font-mono shadow-inner">
-            <Clock className="w-3.5 h-3.5 text-[#c86414]" />
+          <div className="hidden lg:flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl text-xs text-slate-300 font-mono shadow-inner">
+            <Clock className="w-3.5 h-3.5 text-sky-400" />
             <span>{time}</span>
           </div>
 
@@ -98,7 +97,7 @@ export default function Header({
           {onLogout && (
             <button
               onClick={onLogout}
-              className="bg-[#1f140d] hover:bg-rose-950/60 text-[#c4b1a1] hover:text-rose-200 border border-[#4a3324] hover:border-rose-600 p-2 rounded-xl transition-all"
+              className="bg-slate-900 hover:bg-rose-950/60 text-slate-400 hover:text-rose-200 border border-slate-700 hover:border-rose-600 p-2 rounded-xl transition-all"
               title="Cerrar sesión de empleado"
             >
               <LogOut className="w-4 h-4" />

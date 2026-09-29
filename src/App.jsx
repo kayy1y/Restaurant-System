@@ -1,33 +1,51 @@
 import React from 'react';
+import {
+  HashRouter,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams
+} from 'react-router-dom';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import LoginScreen from './components/LoginScreen';
 import IncidentsModal from './components/IncidentsModal';
-
-// Interfaces Especializadas por Puesto de Empleado
+import Banner from './components/ui/Banner';
 import SaloneroView from './components/roles/SaloneroView';
 import CocinaView from './components/roles/CocinaView';
 import CajeroView from './components/roles/CajeroView';
-import AdminView from './components/roles/AdminView';
-
-// Módulos Comunes & Personalización
-import InventoryDashboard from './components/inventory/InventoryDashboard';
-import InvoiceManager from './components/InvoiceManager';
-import ReturnsModal from './components/ReturnsModal';
-import GastroAIAssistant from './components/GastroAIAssistant';
-import ReportsDashboard from './components/ReportsDashboard';
-import AuditLogViewer from './components/AuditLogViewer';
-import ReservationManager from './components/ReservationManager';
-
 import { ROLES, TABLES } from './data/mockData';
 import { seedUnifiedDatabase } from './services/db';
-import { getActiveSession, logout as clearActiveSession } from './services/authService';
+import {
+  getActiveSession,
+  logout as clearActiveSession,
+  refreshActiveSession
+} from './services/authService';
 import { getUserPreferences, applyThemeToDOM } from './services/themeService';
 import { updateReservationStatus } from './services/reservationService';
 
+const InventoryDashboard = React.lazy(() => import('./components/inventory/InventoryDashboard.jsx'));
+const InvoiceManager = React.lazy(() => import('./components/InvoiceManager.jsx'));
+const ReturnsModal = React.lazy(() => import('./components/ReturnsModal.jsx'));
+const GastroAIAssistant = React.lazy(() => import('./components/GastroAIAssistant.jsx'));
+const ReportsDashboard = React.lazy(() => import('./components/ReportsDashboard.jsx'));
+const ReservationManager = React.lazy(() => import('./components/ReservationManager.jsx'));
+const AdminView = React.lazy(() => import('./components/roles/AdminView.jsx'));
+
+const ROLE_ALLOWED_TABS = {
+  SALONERO: ['mesas', 'reservas', 'ia'],
+  CAJERO: ['mesas', 'reservas', 'caja', 'facturas', 'devoluciones', 'ia'],
+  COCINA: ['cocina', 'inventario', 'ia'],
+  BARRA: ['cocina', 'inventario', 'ia'],
+  INVENTARIO: ['inventario', 'ia'],
+  GERENTE: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'devoluciones', 'ia', 'reportes'],
+  ADMINISTRADOR: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'devoluciones', 'ia', 'reportes', 'admin']
+};
+
 function getRoleForSession(session) {
   const roleId = session?.user?.role_id;
-  return ROLES.find(r => r.id.toUpperCase() === String(roleId || '').toUpperCase()) || ROLES[0];
+  return ROLES.find(role => role.id.toUpperCase() === String(roleId || '').toUpperCase()) || ROLES[0];
 }
 
 function getDefaultTabForRole(roleId) {
@@ -44,181 +62,144 @@ function getDefaultTabForRole(roleId) {
   }
 }
 
-export default function App() {
-  const [activeSession, setActiveSession] = React.useState(() => getActiveSession());
-  const [currentRole, setCurrentRole] = React.useState(() => getRoleForSession(getActiveSession()));
-  const [activeTab, setActiveTab] = React.useState(() => getDefaultTabForRole(getActiveSession()?.user?.role_id));
-  const [isOffline, setIsOffline] = React.useState(false);
-  const [activeBranch, setActiveBranch] = React.useState('001');
-  const [isSidebarCompact, setIsSidebarCompact] = React.useState(false);
-  const [tables, setTables] = React.useState(TABLES);
+function ModuleLoader() {
+  return (
+    <div className="glass-panel rounded-2xl p-6 shadow-md">
+      <p className="text-sm font-bold">Cargando módulo...</p>
+      <p className="text-xs text-[var(--text-muted)] mt-1">Gastroflow está preparando la vista solicitada.</p>
+    </div>
+  );
+}
 
-  // Modal de Incidencia Universal
-  const [showIncidentModal, setShowIncidentModal] = React.useState(false);
+function EmptyState({ title, description }) {
+  return (
+    <div className="glass-panel rounded-2xl p-6 shadow-md">
+      <h2 className="font-heading font-extrabold text-xl">{title}</h2>
+      <p className="text-sm text-[var(--text-muted)] mt-2">{description}</p>
+    </div>
+  );
+}
 
-  // Inicializar Base de Datos Unificada & Cargar Tema por Defecto
-  React.useEffect(() => {
-    seedUnifiedDatabase().catch(err => console.error('Error seeding DB:', err));
-    getUserPreferences('global').then(prefs => applyThemeToDOM(prefs));
-  }, []);
-
-  React.useEffect(() => {
-    if (!activeSession?.user?.id) {
-      setCurrentRole(ROLES[0]);
-      setIsSidebarCompact(false);
-      return;
-    }
-
-    const matchedRole = getRoleForSession(activeSession);
-    setCurrentRole(matchedRole);
-    setActiveTab(prevTab => prevTab || getDefaultTabForRole(activeSession.user.role_id));
-
-    let isCancelled = false;
-    getUserPreferences(activeSession.user.id)
-      .then(userPrefs => {
-        if (isCancelled) return;
-        applyThemeToDOM(userPrefs);
-        setIsSidebarCompact(userPrefs.sidebar_style === 'compact');
-      })
-      .catch(err => console.error('Error cargando preferencias del usuario:', err));
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [activeSession]);
-
-  // Al autenticar empleado en la pantalla inicial: Cargar sus preferencias personales de tema
-  const handleLoginSuccess = async (session) => {
-    setActiveSession(session);
-    const matchedRole = ROLES.find(r => r.id.toUpperCase() === session.user.role_id.toUpperCase()) || ROLES[0];
-    setCurrentRole(matchedRole);
-
-    const userPrefs = await getUserPreferences(session.user.id);
-    applyThemeToDOM(userPrefs);
-    if (userPrefs.sidebar_style === 'compact') setIsSidebarCompact(true);
-
-    setActiveTab(getDefaultTabForRole(session.user.role_id));
-  };
-
-  const handleLogout = () => {
-    clearActiveSession();
-    setActiveSession(null);
-    setCurrentRole(ROLES[0]);
-    setActiveTab('mesas');
-    getUserPreferences('global')
-      .then(prefs => {
-        applyThemeToDOM(prefs);
-        setIsSidebarCompact(prefs.sidebar_style === 'compact');
-      })
-      .catch(err => console.error('Error restaurando preferencias globales:', err));
-  };
-
-  // Acción Sentar Cliente desde el módulo de Reservas: cambia mesa a OCUPADA y pasa a la vista POS
-  const handleSeatCustomerFromReservation = async (reservation) => {
-    try {
-      await updateReservationStatus(reservation.id_reserva, 'sentado');
-      setTables(prevTables => prevTables.map(t => 
-        t.id === reservation.id_mesa ? { ...t, status: 'ocupada' } : t
-      ));
-      setActiveTab('mesas');
-    } catch (err) {
-      console.error('Error sentando cliente:', err);
-    }
-  };
-
-  // Enforzar restricción estricta de pestañas permitidas por rol
-  React.useEffect(() => {
-    const roleIdUpper = (currentRole?.id || '').toUpperCase();
-    const roleAllowedTabs = {
-      SALONERO: ['mesas', 'reservas', 'ia'],
-      CAJERO: ['mesas', 'reservas', 'caja', 'facturas', 'devoluciones', 'ia'],
-      COCINA: ['cocina', 'inventario', 'ia'],
-      BARRA: ['cocina', 'inventario', 'ia'],
-      INVENTARIO: ['inventario', 'ia'],
-      GERENTE: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'devoluciones', 'ia', 'reportes'],
-      ADMINISTRADOR: ['mesas', 'reservas', 'cocina', 'caja', 'inventario', 'facturas', 'devoluciones', 'ia', 'reportes', 'auditoria', 'admin']
-    };
-
-    const allowed = roleAllowedTabs[roleIdUpper];
-    if (allowed && !allowed.includes(activeTab)) {
-      setActiveTab(allowed[0]);
-    }
-  }, [currentRole, activeTab]);
-
-  // Si no hay sesión iniciada, mostrar Pantalla de Login Obligatoria
-  if (!activeSession) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+function LoginRoute({ activeSession, sessionChecked, onLoginSuccess }) {
+  if (!sessionChecked) {
+    return <ModuleLoader />;
   }
+
+  if (activeSession?.user?.role_id) {
+    return <Navigate to={`/app/${getDefaultTabForRole(activeSession.user.role_id)}`} replace />;
+  }
+
+  return <LoginScreen onLoginSuccess={onLoginSuccess} />;
+}
+
+function ProtectedShell({
+  activeSession,
+  sessionChecked,
+  isOffline,
+  setIsOffline,
+  activeBranch,
+  setActiveBranch,
+  tables,
+  setTables,
+  showIncidentModal,
+  setShowIncidentModal,
+  onLogout,
+  onSeatCustomer
+}) {
+  const navigate = useNavigate();
+  const { tab } = useParams();
+
+  if (!sessionChecked) {
+    return <ModuleLoader />;
+  }
+
+  if (!activeSession?.user?.id) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const currentRole = getRoleForSession(activeSession);
+  const allowedTabs = ROLE_ALLOWED_TABS[String(currentRole.id || '').toUpperCase()] || ['mesas'];
+  const activeTab = tab || getDefaultTabForRole(activeSession.user.role_id);
+
+  if (!allowedTabs.includes(activeTab)) {
+    return <Navigate to={`/app/${allowedTabs[0]}`} replace />;
+  }
+
+  const renderActiveModule = () => {
+    switch (activeTab) {
+      case 'reservas':
+        return (
+          <ReservationManager
+            tables={tables}
+            currentRole={currentRole}
+            onSeatCustomer={onSeatCustomer}
+          />
+        );
+      case 'facturas':
+        return <InvoiceManager currentRole={currentRole} />;
+      case 'mesas':
+        return <SaloneroView activeSessionUser={activeSession.user} />;
+      case 'cocina':
+        return <CocinaView />;
+      case 'caja':
+        return <CajeroView />;
+      case 'inventario':
+        return <InventoryDashboard currentRole={currentRole} />;
+      case 'devoluciones':
+        return <ReturnsModal orders={[]} currentRole={currentRole} onLogAudit={() => {}} />;
+      case 'ia':
+        return <GastroAIAssistant orders={[]} rawIngredients={[]} currentRole={currentRole} />;
+      case 'reportes':
+        return <ReportsDashboard />;
+      case 'admin':
+        return <AdminView />;
+      default:
+        return <Navigate to={`/app/${allowedTabs[0]}`} replace />;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex flex-col font-sans transition-colors duration-300">
-      {/* Top Header */}
       <Header
         currentRole={currentRole}
-        setCurrentRole={(role) => setCurrentRole(role)}
+        setCurrentRole={() => {}}
         activeSessionUser={activeSession.user}
         isOffline={isOffline}
         setIsOffline={setIsOffline}
         activeBranch={activeBranch}
         setActiveBranch={setActiveBranch}
         pendingFiscalQueue={0}
-        onLogout={handleLogout}
-        onOpenAppearance={() => setActiveTab('apariencia')}
+        onLogout={onLogout}
       />
 
-      {/* Main Layout: Sidebar Left, Content Right */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden w-full px-2 sm:px-4">
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row w-full px-2 sm:px-4">
         <Sidebar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={(nextTab) => navigate(`/app/${nextTab}`)}
           currentRole={currentRole}
-          isCompact={isSidebarCompact}
-          setIsCompact={setIsSidebarCompact}
+          isCompact={false}
+          setIsCompact={() => {}}
+          activeSessionUser={activeSession.user}
+          onLogout={onLogout}
         />
 
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full relative">
-          {/* Barra de Herramientas Superior: Incidencias */}
+        <main className="flex-1 min-w-0 p-3 sm:p-6 overflow-y-auto w-full relative">
           <div className="mb-4 flex justify-end items-center gap-2 ml-auto">
             <button
+              type="button"
               onClick={() => setShowIncidentModal(true)}
-              className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
+              className="ui-button-outline text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all"
             >
-              <span>⚠️ Reportar Incidencia</span>
+              <span>Reportar incidencia</span>
             </button>
           </div>
 
-          {/* Módulo de Reservas de Mesas */}
-          {activeTab === 'reservas' && (
-            <ReservationManager 
-              tables={tables} 
-              currentRole={currentRole} 
-              onSeatCustomer={handleSeatCustomerFromReservation} 
-            />
-          )}
-
-          {/* Módulo de Facturación v4.3 */}
-          {activeTab === 'facturas' && (
-            <InvoiceManager currentRole={currentRole} />
-          )}
-
-          {/* Renderizado de Pestañas Operativas Generales */}
-          {activeTab !== 'reservas' && activeTab !== 'facturas' && (
-            <>
-              {activeTab === 'mesas' && <SaloneroView activeSessionUser={activeSession.user} />}
-              {activeTab === 'cocina' && <CocinaView />}
-              {activeTab === 'caja' && <CajeroView />}
-              {activeTab === 'inventario' && <InventoryDashboard currentRole={currentRole} />}
-              {activeTab === 'devoluciones' && <ReturnsModal orders={[]} currentRole={currentRole} onLogAudit={() => {}} />}
-              {activeTab === 'ia' && <GastroAIAssistant orders={[]} rawIngredients={[]} currentRole={currentRole} />}
-              {activeTab === 'reportes' && <ReportsDashboard />}
-              {activeTab === 'auditoria' && <AuditLogViewer auditLogs={[]} />}
-              {activeTab === 'admin' && <AdminView />}
-            </>
-          )}
+          <React.Suspense fallback={<ModuleLoader />}>
+            {renderActiveModule()}
+          </React.Suspense>
         </main>
       </div>
 
-      {/* Modal Universal de Incidencias */}
       {showIncidentModal && (
         <IncidentsModal
           order={null}
@@ -228,5 +209,140 @@ export default function App() {
         />
       )}
     </div>
+  );
+}
+
+function AppRoutes(props) {
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          props.activeSession?.user?.role_id
+            ? <Navigate to={`/app/${getDefaultTabForRole(props.activeSession.user.role_id)}`} replace />
+            : <Navigate to="/login" replace />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <LoginRoute
+            activeSession={props.activeSession}
+            sessionChecked={props.sessionChecked}
+            onLoginSuccess={props.onLoginSuccess}
+          />
+        }
+      />
+      <Route
+        path="/app/:tab"
+        element={<ProtectedShell {...props} />}
+      />
+      <Route
+        path="*"
+        element={
+          <EmptyState
+            title="Ruta no encontrada"
+            description="La vista solicitada no existe o no está disponible para este rol."
+          />
+        }
+      />
+    </Routes>
+  );
+}
+
+export default function App() {
+  const [activeSession, setActiveSession] = React.useState(() => getActiveSession());
+  const [sessionChecked, setSessionChecked] = React.useState(false);
+  const [isOffline, setIsOffline] = React.useState(false);
+  const [activeBranch, setActiveBranch] = React.useState('001');
+  const [tables, setTables] = React.useState(TABLES);
+  const [showIncidentModal, setShowIncidentModal] = React.useState(false);
+
+  React.useEffect(() => {
+    seedUnifiedDatabase().catch(err => console.error('Error seeding DB:', err));
+    getUserPreferences('global').then(prefs => applyThemeToDOM(prefs));
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    refreshActiveSession()
+      .then(session => {
+        if (!cancelled) {
+          setActiveSession(session);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSessionChecked(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!activeSession?.user?.id) {
+      return;
+    }
+
+    let cancelled = false;
+    getUserPreferences(activeSession.user.id)
+      .then(userPrefs => {
+        if (!cancelled) {
+          applyThemeToDOM(userPrefs);
+        }
+      })
+      .catch(err => console.error('Error cargando preferencias del usuario:', err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSession]);
+
+  const handleLoginSuccess = React.useCallback((session) => {
+    setActiveSession(session);
+    setSessionChecked(true);
+  }, []);
+
+  const handleLogout = React.useCallback(() => {
+    clearActiveSession();
+    setActiveSession(null);
+    getUserPreferences('global')
+      .then(prefs => applyThemeToDOM(prefs))
+      .catch(err => console.error('Error restaurando preferencias globales:', err));
+  }, []);
+
+  const handleSeatCustomerFromReservation = React.useCallback(async (reservation) => {
+    try {
+      await updateReservationStatus(reservation.id_reserva, 'sentado');
+      setTables(prevTables => prevTables.map(table =>
+        table.id === reservation.id_mesa ? { ...table, status: 'ocupada' } : table
+      ));
+    } catch (err) {
+      console.error('Error sentando cliente:', err);
+    }
+  }, []);
+
+  return (
+    <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppRoutes
+        activeSession={activeSession}
+        sessionChecked={sessionChecked}
+        onLoginSuccess={handleLoginSuccess}
+        isOffline={isOffline}
+        setIsOffline={setIsOffline}
+        activeBranch={activeBranch}
+        setActiveBranch={setActiveBranch}
+        tables={tables}
+        setTables={setTables}
+        showIncidentModal={showIncidentModal}
+        setShowIncidentModal={setShowIncidentModal}
+        onLogout={handleLogout}
+        onSeatCustomer={handleSeatCustomerFromReservation}
+      />
+    </HashRouter>
   );
 }

@@ -1,22 +1,27 @@
 import React from 'react';
-import { ChefHat, CreditCard, ShieldCheck, User } from 'lucide-react';
+import { ChefHat, CreditCard, ShieldCheck, User, Utensils } from 'lucide-react';
 import { authenticateByPin, getAllUsers } from '../services/authService';
-import { INITIAL_USERS } from '../services/db';
+import { seedUnifiedDatabase } from '../services/db';
 
 export default function LoginScreen({ onLoginSuccess }) {
-  const [users, setUsers] = React.useState(INITIAL_USERS);
-  const [selectedUser, setSelectedUser] = React.useState(INITIAL_USERS[0]);
+  const [users, setUsers] = React.useState([]);
+  const [selectedUser, setSelectedUser] = React.useState(null);
+  const [loadingUsers, setLoadingUsers] = React.useState(true);
   const [pinInput, setPinInput] = React.useState('');
   const [errorMsg, setErrorMsg] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    getAllUsers().then(data => {
-      if (data && data.length > 0) {
-        setUsers(data);
-        setSelectedUser(data[0]);
-      }
-    }).catch(err => console.error('Error cargando usuarios:', err));
+    let cancelled = false;
+    seedUnifiedDatabase().then(getAllUsers).then(data => {
+      if (cancelled) return;
+      const active = (data || []).filter(user => user.active);
+      setUsers(active);
+      setSelectedUser(active[0] || null);
+      if (!active.length) setErrorMsg('No hay empleados activos. Revisá los usuarios desde Administración.');
+    }).catch(err => { if (!cancelled) setErrorMsg(`No se pudo cargar el personal: ${err.message}`); })
+      .finally(() => { if (!cancelled) setLoadingUsers(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const handleKeypadPress = (digit) => {
@@ -30,9 +35,18 @@ export default function LoginScreen({ onLoginSuccess }) {
     setErrorMsg('');
   };
 
+  const handlePinInputChange = (e) => {
+    const nextValue = String(e.target.value || '')
+      .replace(/\D/g, '')
+      .slice(0, 4);
+    setPinInput(nextValue);
+    setErrorMsg('');
+  };
+
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
     setErrorMsg('');
+    if (!selectedUser || loadingUsers) return;
 
     if (pinInput.length < 4) {
       setErrorMsg('El código PIN debe ser de 4 dígitos.');
@@ -66,7 +80,7 @@ export default function LoginScreen({ onLoginSuccess }) {
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="bg-[#5d402b] w-16 h-16 rounded-2xl shadow-xl border border-[#8c6544] text-[#fffdf9] font-black text-3xl flex items-center justify-center mx-auto transform hover:scale-105 transition-transform">
-            🍷
+            <Utensils className="w-8 h-8" aria-hidden="true" />
           </div>
           <h1 className="font-heading font-extrabold text-2xl text-[#231710] tracking-tight">
             La Vid Steak House & Pizza
@@ -76,10 +90,11 @@ export default function LoginScreen({ onLoginSuccess }) {
 
         {/* User Selection List */}
         <div>
-          <label className="text-[11px] font-bold text-[#6e5a4b] uppercase tracking-wider block mb-2 text-center font-mono">
+          <p className="text-[11px] font-bold text-[#6e5a4b] uppercase tracking-wider block mb-2 text-center font-mono">
             1. Seleccionar Empleado o Puesto
-          </label>
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {loadingUsers && <p className="col-span-full text-center py-4" role="status">Cargando personal…</p>}
             {users.map(u => {
               const badge = getRoleBadge(u.role_id);
               const isSel = selectedUser?.id === u.id;
@@ -113,10 +128,31 @@ export default function LoginScreen({ onLoginSuccess }) {
 
         {/* PIN Input Display */}
         <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            value={selectedUser?.name || ''}
+            tabIndex={-1}
+            className="sr-only"
+            onChange={() => {}}
+          />
           <div>
-            <label className="text-[11px] font-bold text-[#6e5a4b] uppercase tracking-wider block mb-1.5 text-center font-mono">
+            <label htmlFor="gastroflow-login-pin" className="text-[11px] font-bold text-[#6e5a4b] uppercase tracking-wider block mb-1.5 text-center font-mono">
               2. Código PIN de 4 Dígitos
             </label>
+            <input
+              id="gastroflow-login-pin"
+              name="pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="current-password"
+              value={pinInput}
+              onChange={handlePinInputChange}
+              maxLength={4}
+              className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-2xl px-4 py-2.5 text-center font-mono font-bold tracking-[0.4em] text-[#231710] focus:outline-none focus:ring-2 focus:ring-[#5d402b]/30"
+              aria-describedby="gastroflow-login-pin-help"
+            />
             <div className="bg-[#fffdf9] border border-[#dac8b3] rounded-2xl py-3 px-4 flex items-center justify-center gap-3 shadow-inner">
               {[0, 1, 2, 3].map(idx => (
                 <div
@@ -130,7 +166,7 @@ export default function LoginScreen({ onLoginSuccess }) {
               ))}
             </div>
             {selectedUser && (
-              <p className="text-[10px] text-[#6e5a4b] text-center mt-1.5 font-mono font-semibold">
+              <p id="gastroflow-login-pin-help" className="text-[10px] text-[#6e5a4b] text-center mt-1.5 font-mono font-semibold">
                 Ingresando como: <strong className="text-[#5d402b] font-bold">{selectedUser.name}</strong> ({getRoleBadge(selectedUser.role_id).label})
               </p>
             )}
@@ -143,6 +179,7 @@ export default function LoginScreen({ onLoginSuccess }) {
                 key={num}
                 type="button"
                 onClick={() => handleKeypadPress(num.toString())}
+                aria-label={`Ingresar dígito ${num}`}
                 className="bg-[#fffdf9] hover:bg-[#f5efe6] active:bg-[#e2d7c5] text-[#231710] font-mono font-bold text-lg py-3 rounded-2xl border border-[#dac8b3] transition-all active:scale-95 shadow-sm"
               >
                 {num}
@@ -151,6 +188,7 @@ export default function LoginScreen({ onLoginSuccess }) {
             <button
               type="button"
               onClick={handleClear}
+              aria-label="Borrar PIN"
               className="bg-[#faf6ee] hover:bg-rose-100 text-[#802319] font-bold text-xs py-3 rounded-2xl border border-[#dac8b3] transition-all"
             >
               Borrar
@@ -158,13 +196,14 @@ export default function LoginScreen({ onLoginSuccess }) {
             <button
               type="button"
               onClick={() => handleKeypadPress('0')}
+              aria-label="Ingresar dígito 0"
               className="bg-[#fffdf9] hover:bg-[#f5efe6] text-[#231710] font-mono font-bold text-lg py-3 rounded-2xl border border-[#dac8b3] transition-all"
             >
               0
             </button>
             <button
               type="submit"
-              disabled={pinInput.length < 4 || isSubmitting}
+              disabled={pinInput.length < 4 || isSubmitting || loadingUsers || !selectedUser}
               className="bg-[#5d402b] hover:bg-[#483120] text-[#fffdf9] font-extrabold text-xs py-3 rounded-2xl shadow-lg disabled:opacity-50 transition-all border border-[#3e2718]"
             >
               Ingresar

@@ -96,10 +96,10 @@ export default function TableMapPOS({
             statusBadgeClass = 'bg-[#735036]/20 text-[#362214] border-[#735036]/50';
           } else if (resDetails.currentReservation) {
             if (resDetails.currentReservation.estado === 'cliente_llego') {
-              statusLabel = 'CLIENTE LLEGÓ';
+              statusLabel = 'OCUPADA · CLIENTE LLEGÓ';
               statusBadgeClass = 'bg-sky-700 text-white border-sky-800 font-extrabold animate-pulse';
             } else if (resDetails.currentReservation.estado === 'sentado') {
-              statusLabel = 'SENTADO / POR PEDIR';
+              statusLabel = 'OCUPADA · POR PEDIR';
               statusBadgeClass = 'bg-amber-900 text-amber-100 border-amber-950 font-black';
             } else {
               statusLabel = 'RESERVADA';
@@ -117,6 +117,8 @@ export default function TableMapPOS({
           return (
             <div
               key={table.id}
+              data-occupied={Boolean(activeOrder || resDetails.currentReservation?.estado === 'sentado' || resDetails.currentReservation?.estado === 'cliente_llego')}
+              data-process={activeOrder ? 'occupied' : resDetails.currentReservation || resDetails.upcomingReservation ? 'reserved' : 'ready'}
               onClick={() => setSelectedTable(table)}
               className={`glass-card p-4 rounded-3xl cursor-pointer relative group flex flex-col justify-between min-h-[210px] border transition-all bg-[#fffdf9] ${
                 selectedTable?.id === table.id ? 'border-[#5d402b] ring-2 ring-[#5d402b]/30 shadow-xl' : 'border-[#dac8b3]'
@@ -134,7 +136,7 @@ export default function TableMapPOS({
                     </h3>
                     <p className="text-[11px] text-[#3d2717] font-bold">{table.zone}</p>
                   </div>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border font-extrabold ${statusBadgeClass}`}>
+                  <span className="process-badge">
                     {statusLabel}
                   </span>
                 </div>

@@ -1,188 +1,200 @@
-/**
- * Servicio de Autenticación, Roles, Permisos y Sesiones por Puesto (GastroFlow OS)
- * Maneja autenticación segura de usuarios, hash de PIN (SHA-256), límites de intentos (brute-force prevention)
- * y validación dinámica de autorizaciones de Gerencia/Administración sin claves hardcodeadas.
- */
+import {
+  dbDelete,
+  dbGet,
+  dbGetAll,
+  dbPut,
+  ROLE_PERMISSIONS_MAPPING,
+  seedUnifiedDatabase
+} from './db.js';
+import {
+  clearStoredSession,
+  getStoredSession,
+  persistStoredSession
+} from '../lib/gastroflowSession.js';
+import { isSupabaseConfigured, supabase } from '../lib/supabase.js';
 
-import { dbGetAll, dbGet, dbPut, dbDelete, seedUnifiedDatabase } from './db.js';
+let activeSession = getStoredSession();
 
-let activeSession = null;
-const SESSION_STORAGE_KEY = 'gastroflow_active_session_v1';
-
-// Mapa en memoria para prevención de fuerza bruta: { [key]: { attempts: number, lockedUntil: number } }
-const failedAttemptsMap = new Map();
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 30000; // 30 segundos de bloqueo tras 5 intentos fallidos
-
-function canUseStorage() {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+function canUseRemoteAuth() {
+  return Boolean(isSupabaseConfigured && supabase);
 }
 
-function persistSession(session) {
-  if (!canUseStorage()) return;
-
-  try {
-    if (session) {
-      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-    } else {
-      window.localStorage.removeItem(SESSION_STORAGE_KEY);
-    }
-  } catch (err) {
-    console.warn('No se pudo persistir la sesión local:', err);
-  }
+function normalizeRoleId(roleId = '') {
+  return String(roleId || '').trim().toUpperCase();
 }
 
-function restorePersistedSession() {
-  if (!canUseStorage()) return null;
+function normalizeUserRecord(record = {}) {
+  return {
+    id: record.id,
+    name: record.name || record.nombre || 'Usuario',
+    role_id: normalizeRoleId(record.role_id || record.rol),
+    active: record.active ?? record.activo ?? true,
+    created_at: record.created_at || record.creado_en || null
+  };
+}
 
-  try {
-    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    if (!parsed?.user?.id || !parsed?.user?.role_id) {
-      window.localStorage.removeItem(SESSION_STORAGE_KEY);
-      return null;
-    }
-
-    return parsed;
-  } catch (err) {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY);
-    console.warn('No se pudo restaurar la sesión persistida:', err);
-    return null;
+function buildPermissions(roleId) {
+  const normalizedRole = normalizeRoleId(roleId);
+  if (normalizedRole === 'ADMINISTRADOR') {
+    return ROLE_PERMISSIONS_MAPPING.map(item => item.permission_id);
   }
+
+  return ROLE_PERMISSIONS_MAPPING
+    .filter(item => item.role_id === normalizedRole)
+    .map(item => item.permission_id);
+}
+
+function buildSessionPayload(remotePayload = {}, persistedToken = '') {
+  const user = normalizeUserRecord(remotePayload.user || remotePayload);
+  const token = remotePayload.token || persistedToken;
+  const permissions = remotePayload.permissions || buildPermissions(user.role_id);
+
+  return {
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      role_id: user.role_id
+    },
+    role: {
+      id: user.role_id,
+      name: user.role_id
+    },
+    permissions,
+    loginTime: remotePayload.loginTime || remotePayload.login_time || new Date().toISOString()
+  };
+}
+
+async function callRpc(functionName, params) {
+  if (!canUseRemoteAuth()) {
+    throw new Error('Supabase no está configurado para autenticación remota.');
+  }
+
+  const { data, error } = params
+    ? await supabase.rpc(functionName, params)
+    : await supabase.rpc(functionName);
+
+  if (error) {
+    throw new Error(error.message || `Error ejecutando ${functionName}.`);
+  }
+
+  return data;
+}
+
+async function fallbackAuthenticateByPin(pinInput, targetUserId = null) {
+  const users = await dbGetAll('users');
+  const cleanPin = String(pinInput || '').trim();
+  const normalizedTarget = String(targetUserId || '').trim();
+
+  const user = users.find(candidate => {
+    if (!candidate?.active) return false;
+    if (normalizedTarget && candidate.id !== normalizedTarget) return false;
+    return String(candidate.pin || '').trim() === cleanPin;
+  });
+
+  if (!user) {
+    throw new Error('Código PIN incorrecto o usuario sin permisos activos.');
+  }
+
+  const session = {
+    token: '',
+    user: {
+      id: user.id,
+      name: user.name,
+      role_id: normalizeRoleId(user.role_id)
+    },
+    role: {
+      id: normalizeRoleId(user.role_id),
+      name: normalizeRoleId(user.role_id)
+    },
+    permissions: buildPermissions(user.role_id),
+    loginTime: new Date().toISOString()
+  };
+
+  activeSession = session;
+  persistStoredSession(session);
+  return session;
 }
 
 export async function initAuthModule() {
   await seedUnifiedDatabase();
-}
-
-/**
- * Función para generar Hash SHA-256 seguro de un código PIN
- */
-export async function hashPin(pin) {
-  if (!pin) return '';
-  const cleanPin = String(pin).trim();
-  if (typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined') {
+  if (canUseRemoteAuth() && getStoredSession()?.token) {
     try {
-      const msgBuffer = new TextEncoder().encode(cleanPin);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    } catch {
-      // Fallback si falla crypto.subtle
+      return await refreshActiveSession();
+    } catch (err) {
+      logout();
     }
   }
-  let hash = 0;
-  for (let i = 0; i < cleanPin.length; i++) {
-    const char = cleanPin.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return `hash_${Math.abs(hash)}`;
+  return getActiveSession();
 }
 
-/**
- * Verifica si un PIN ingresado coincide con el PIN almacenado (sea plano o hashed)
- */
+export async function hashPin(pin) {
+  if (!pin) return '';
+
+  const cleanPin = String(pin).trim();
+  if (typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined') {
+    const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cleanPin));
+    return Array.from(new Uint8Array(buffer))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  return cleanPin;
+}
+
 export async function verifyPinMatch(inputPin, storedPinOrHash) {
   if (!inputPin || !storedPinOrHash) return false;
   const cleanInput = String(inputPin).trim();
   const cleanStored = String(storedPinOrHash).trim();
-
-  // Coincidencia directa (PIN en texto plano heredado)
   if (cleanInput === cleanStored) return true;
-
-  // Coincidencia con hash SHA-256
-  const hashedInput = await hashPin(cleanInput);
-  return hashedInput === cleanStored;
+  return (await hashPin(cleanInput)) === cleanStored;
 }
 
-/**
- * Verifica y gestiona intentos fallidos de autenticación (Rate-Limiting)
- */
-function checkRateLimit(key) {
-  const record = failedAttemptsMap.get(key);
-  const now = Date.now();
-  if (record && record.lockedUntil > now) {
-    const remainingSec = Math.ceil((record.lockedUntil - now) / 1000);
-    throw new Error(`Demasiados intentos fallidos. Acceso bloqueado por ${remainingSec} segundos por seguridad.`);
-  }
-}
-
-function recordFailedAttempt(key) {
-  const now = Date.now();
-  const record = failedAttemptsMap.get(key) || { attempts: 0, lockedUntil: 0 };
-  record.attempts += 1;
-  if (record.attempts >= MAX_FAILED_ATTEMPTS) {
-    record.lockedUntil = now + LOCKOUT_DURATION_MS;
-    record.attempts = 0;
-  }
-  failedAttemptsMap.set(key, record);
-}
-
-function resetFailedAttempts(key) {
-  failedAttemptsMap.delete(key);
-}
-
-/**
- * Autenticar empleado mediante Selección de Usuario y/o Código PIN
- */
 export async function authenticateByPin(pinInput, targetUserId = null) {
   if (!pinInput || String(pinInput).trim().length < 4) {
     throw new Error('El código PIN debe ser de al menos 4 dígitos numéricos.');
   }
 
-  const rateKey = targetUserId ? `user_${targetUserId}` : `pin_${pinInput}`;
-  checkRateLimit(rateKey);
-
-  const users = await dbGetAll('users');
-  let user = null;
-
-  if (targetUserId) {
-    const foundUser = users.find(u => u.id === targetUserId && u.active);
-    if (!foundUser) {
-      throw new Error('El usuario seleccionado no existe o está inactivo.');
-    }
-    const matches = await verifyPinMatch(pinInput, foundUser.pin);
-    if (matches) {
-      user = foundUser;
-    }
-  } else {
-    for (const u of users) {
-      if (!u.active) continue;
-      const matches = await verifyPinMatch(pinInput, u.pin);
-      if (matches) {
-        user = u;
-        break;
-      }
-    }
+  if (!canUseRemoteAuth()) {
+    return fallbackAuthenticateByPin(pinInput, targetUserId);
   }
 
-  if (!user) {
-    recordFailedAttempt(rateKey);
-    throw new Error('Código PIN incorrecto o usuario sin permisos activos.');
-  }
+  const remoteSession = await callRpc('gastroflow_pin_login', {
+    p_pin: String(pinInput).trim(),
+    p_perfil_id: targetUserId || null
+  });
 
-  resetFailedAttempts(rateKey);
-
-  const role = await dbGet('roles', user.role_id);
-  const permissions = await getPermissionsForRole(user.role_id);
-
-  activeSession = {
-    user: { id: user.id, name: user.name, role_id: user.role_id },
-    role: role || { id: user.role_id, name: user.role_id },
-    permissions: permissions.map(p => p.permission_id),
-    loginTime: new Date().toISOString()
-  };
-  persistSession(activeSession);
-
-  return activeSession;
+  const session = buildSessionPayload(remoteSession);
+  activeSession = session;
+  persistStoredSession(session);
+  return session;
 }
 
-/**
- * Valida un PIN de autorización de Gerente o Administrador en tiempo real contra la base de datos
- */
+export async function refreshActiveSession() {
+  const persisted = getStoredSession();
+  if (canUseRemoteAuth() && !persisted?.token) {
+    activeSession = null;
+    clearStoredSession();
+    return null;
+  }
+
+  if (!persisted?.token || !canUseRemoteAuth()) {
+    activeSession = persisted || null;
+    return activeSession;
+  }
+
+  try {
+    const remoteSession = await callRpc('gastroflow_session_me');
+    const session = buildSessionPayload(remoteSession, persisted.token);
+    activeSession = session;
+    persistStoredSession(session);
+    return session;
+  } catch (err) {
+    logout();
+    return null;
+  }
+}
+
 export async function validateAuthorizationPin(pinInput, allowedRoleIds = ['ADMINISTRADOR', 'GERENTE']) {
   if (!pinInput || String(pinInput).trim().length < 4) {
     return {
@@ -192,108 +204,113 @@ export async function validateAuthorizationPin(pinInput, allowedRoleIds = ['ADMI
     };
   }
 
-  const rateKey = `auth_manager_pin`;
-  try {
-    checkRateLimit(rateKey);
-  } catch (err) {
-    return { valid: false, user: null, error: err.message };
-  }
+  if (!canUseRemoteAuth()) {
+    const users = await dbGetAll('users');
+    const normalizedAllowed = allowedRoleIds.map(normalizeRoleId);
+    const match = users.find(user =>
+      user.active &&
+      normalizedAllowed.includes(normalizeRoleId(user.role_id)) &&
+      String(user.pin || '').trim() === String(pinInput).trim()
+    );
 
-  const users = await dbGetAll('users');
-  const normalizedAllowedRoles = allowedRoleIds.map(r => String(r).toUpperCase());
-
-  // Buscar si el PIN pertenece a algún usuario activo con rol autorizado
-  for (const user of users) {
-    if (!user.active) continue;
-
-    const userRole = String(user.role_id).toUpperCase();
-    const isAuthorizedRole = userRole === 'ADMINISTRADOR' || normalizedAllowedRoles.includes(userRole);
-
-    if (isAuthorizedRole) {
-      const isMatch = await verifyPinMatch(pinInput, user.pin);
-      if (isMatch) {
-        resetFailedAttempts(rateKey);
-        return {
+    return match
+      ? {
           valid: true,
-          user: { id: user.id, name: user.name, role_id: user.role_id },
+          user: {
+            id: match.id,
+            name: match.name,
+            role_id: normalizeRoleId(match.role_id)
+          },
           error: null
+        }
+      : {
+          valid: false,
+          user: null,
+          error: 'PIN de autorización no válido.'
         };
-      }
-    }
   }
 
-  recordFailedAttempt(rateKey);
-  return {
-    valid: false,
-    user: null,
-    error: 'PIN de autorización no válido. Debe ingresar el PIN de un Administrador o Gerente activo.'
-  };
+  try {
+    const result = await callRpc('gastroflow_validate_authorization_pin', {
+      p_pin: String(pinInput).trim(),
+      p_allowed_roles: allowedRoleIds.map(normalizeRoleId)
+    });
+
+    return {
+      valid: Boolean(result?.valid),
+      user: result?.user ? normalizeUserRecord(result.user) : null,
+      error: result?.error || null
+    };
+  } catch (err) {
+    return {
+      valid: false,
+      user: null,
+      error: err.message || 'No fue posible validar el PIN.'
+    };
+  }
 }
 
-/**
- * Valida si un PIN ingresado pertenece exclusivamente a un Administrador General activo
- */
 export async function validateAdminPin(pinInput) {
-  return await validateAuthorizationPin(pinInput, ['ADMINISTRADOR']);
+  return validateAuthorizationPin(pinInput, ['ADMINISTRADOR']);
 }
 
-/**
- * Obtener la sesión activa
- */
 export function getActiveSession() {
   if (!activeSession) {
-    activeSession = restorePersistedSession();
+    const persisted = getStoredSession();
+    if (canUseRemoteAuth() && persisted && !persisted.token) {
+      clearStoredSession();
+      activeSession = null;
+      return null;
+    }
+    activeSession = persisted;
   }
   return activeSession;
 }
 
-/**
- * Cerrar Sesión
- */
 export function logout() {
+  if (canUseRemoteAuth() && getStoredSession()?.token) {
+    callRpc('gastroflow_logout').catch(() => {});
+  }
   activeSession = null;
-  persistSession(null);
+  clearStoredSession();
 }
 
-/**
- * Consultar si un Rol específico posee un Permiso determinado en la DB
- */
 export async function hasPermission(roleId, permissionId) {
-  if (roleId === 'ADMINISTRADOR') return true; // Administrador posee control total
-
-  const rolePermissions = await dbGetAll('role_permissions');
-  return rolePermissions.some(rp => rp.role_id === roleId && rp.permission_id === permissionId);
+  return buildPermissions(roleId).includes(permissionId);
 }
 
-/**
- * Obtener la lista de permisos de un Rol desde la DB
- */
 export async function getPermissionsForRole(roleId) {
-  const rolePermissions = await dbGetAll('role_permissions');
-  return rolePermissions.filter(rp => rp.role_id === roleId);
+  return buildPermissions(roleId).map(permission_id => ({ role_id: normalizeRoleId(roleId), permission_id }));
 }
 
-/**
- * Obtener todos los Usuarios con información contextual de roles
- */
 export async function getAllUsers() {
+  if (canUseRemoteAuth()) {
+    const isAdminSession = normalizeRoleId(getActiveSession()?.user?.role_id) === 'ADMINISTRADOR';
+    const functionName = isAdminSession ? 'gastroflow_list_profiles_admin' : 'gastroflow_list_login_profiles';
+    const rows = await callRpc(functionName);
+    return (rows || []).map(row => {
+      const normalized = normalizeUserRecord(row);
+      return {
+        ...normalized,
+        role_name: normalized.role_id
+      };
+    });
+  }
+
   const users = await dbGetAll('users');
   const roles = await dbGetAll('roles');
 
-  return users.map(u => {
-    const roleObj = roles.find(r => r.id === u.role_id);
+  return users.map(user => {
+    const role = roles.find(item => item.id === user.role_id);
     return {
-      ...u,
-      role_name: roleObj ? roleObj.name : u.role_id
+      ...user,
+      role_name: role ? role.name : user.role_id
     };
   });
 }
 
-/**
- * Crear o Editar Usuario (Solo Administrador)
- */
 export async function saveUser(userData, currentAdminRoleId) {
-  if (currentAdminRoleId !== 'ADMINISTRADOR') {
+  if (normalizeRoleId(currentAdminRoleId) !== 'ADMINISTRADOR') {
     throw new Error('Solo un Administrador General puede crear o modificar usuarios y PINs.');
   }
 
@@ -301,60 +318,65 @@ export async function saveUser(userData, currentAdminRoleId) {
     throw new Error('El nombre de usuario es obligatorio.');
   }
 
-  if (!userData.pin || String(userData.pin).trim().length < 4) {
-    throw new Error('El código PIN debe tener al menos 4 dígitos numéricos.');
+  if (!canUseRemoteAuth()) {
+    const userToSave = {
+      id: userData.id || `usr-${Date.now()}`,
+      name: userData.name.trim(),
+      pin: await hashPin(userData.pin),
+      role_id: normalizeRoleId(userData.role_id || 'SALONERO'),
+      active: userData.active !== false,
+      updated_at: new Date().toISOString()
+    };
+    await dbPut('users', userToSave);
+    return userToSave;
   }
 
-  const cleanPin = String(userData.pin).trim();
-  let finalPin = cleanPin;
+  const result = await callRpc('gastroflow_admin_upsert_profile', {
+    p_profile: {
+      id: userData.id || null,
+      nombre: userData.name.trim(),
+      pin: userData.pin || '',
+      rol: normalizeRoleId(userData.role_id || 'SALONERO'),
+      activo: userData.active !== false
+    }
+  });
 
-  // Si no es un hash SHA-256 de 64 caracteres hexa, lo hasheamos para guardarlo seguro
-  if (!/^[a-f0-9]{64}$/i.test(cleanPin)) {
-    finalPin = await hashPin(cleanPin);
-  }
-
-  const userToSave = {
-    id: userData.id || `usr-${Date.now()}`,
-    name: userData.name.trim(),
-    pin: finalPin,
-    role_id: userData.role_id || 'SALONERO',
-    active: userData.active !== undefined ? userData.active : true,
-    updated_at: new Date().toISOString()
-  };
-
-  await dbPut('users', userToSave);
-  return userToSave;
+  return normalizeUserRecord(result);
 }
 
-/**
- * Cambiar estado de activación de un usuario
- */
 export async function toggleUserStatus(userId, currentAdminRoleId) {
-  if (currentAdminRoleId !== 'ADMINISTRADOR') {
+  if (normalizeRoleId(currentAdminRoleId) !== 'ADMINISTRADOR') {
     throw new Error('Solo un Administrador General puede activar o desactivar usuarios.');
   }
 
-  const user = await dbGet('users', userId);
-  if (!user) throw new Error('Usuario no encontrado.');
+  if (!canUseRemoteAuth()) {
+    const user = await dbGet('users', userId);
+    if (!user) throw new Error('Usuario no encontrado.');
+    user.active = !user.active;
+    user.updated_at = new Date().toISOString();
+    await dbPut('users', user);
+    return user;
+  }
 
-  user.active = !user.active;
-  user.updated_at = new Date().toISOString();
-  await dbPut('users', user);
-  return user;
+  const result = await callRpc('gastroflow_admin_toggle_profile', {
+    p_profile_id: userId
+  });
+
+  return normalizeUserRecord(result);
 }
 
-/**
- * Eliminar Usuario (Solo Administrador)
- */
 export async function deleteUser(userId, currentAdminRoleId) {
-  if (currentAdminRoleId !== 'ADMINISTRADOR') {
+  if (normalizeRoleId(currentAdminRoleId) !== 'ADMINISTRADOR') {
     throw new Error('Solo un Administrador General puede eliminar usuarios.');
   }
 
-  if (userId === 'usr-admin') {
-    throw new Error('No se puede eliminar el usuario Administrador Principal del sistema.');
+  if (!canUseRemoteAuth()) {
+    await dbDelete('users', userId);
+    return true;
   }
 
-  await dbDelete('users', userId);
+  await callRpc('gastroflow_admin_delete_profile', {
+    p_profile_id: userId
+  });
   return true;
 }

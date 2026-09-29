@@ -11,7 +11,7 @@ export default function GastroAIAssistant({ orders, rawIngredients, currentRole 
     {
       id: '1',
       sender: 'ai',
-      text: '¡Hola! Soy GastroAI Engine 🤖, tu asistente inteligente de gestión gastronómica. Puedo predecir agotamiento de insumos, sugerir sustitutos en recetas, detectar anomalías de caja y responder consultas financieras.',
+      text: 'Hola, soy el asistente de gestión del restaurante. Podés consultar sobre inventario, recetas, caja y reportes.',
       confidence: 99,
       dataUsed: 'Estado de recetas, inventario y ventas en vivo',
       actionProposed: 'Revisar sugerencias de reabastecimiento'

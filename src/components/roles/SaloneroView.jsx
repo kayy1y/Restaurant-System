@@ -1,10 +1,11 @@
 import React from 'react';
+import { processState } from '../../utils/processState.js';
 import { 
   Users, Clock, Plus, UtensilsCrossed, Lock, UserCheck, 
   ShoppingBag, CheckCircle2, AlertTriangle, Sparkles, X, Check, Filter, Sliders, Trash2, Edit3, Mic, Volume2 
 } from 'lucide-react';
 
-import { getMenuProducts, getMenuCategories, checkProductStockAvailability } from '../../services/menuService.js';
+import { getMenuProducts, getMenuCategories, getProductModifiers, checkProductStockAvailability } from '../../services/menuService.js';
 import { 
   createOrderWithStockDeduction, 
   getActiveOrdersForWaiters, 
@@ -15,8 +16,6 @@ import {
 } from '../../services/orderService.js';
 import { authenticateByPin } from '../../services/authService.js';
 import { liveSync } from '../../services/liveSync.js';
-import { PRODUCT_SPECIFIC_MODIFIERS } from '../../services/db.js';
-import AudioMemoRecorder from '../AudioMemoRecorder.jsx';
 
 export default function SaloneroView({ activeSessionUser }) {
   const [activeUser, setActiveUser] = React.useState(activeSessionUser || { id: 'usr-laura', name: 'Laura' });
@@ -35,17 +34,13 @@ export default function SaloneroView({ activeSessionUser }) {
   const [stockWarning, setStockWarning] = React.useState(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // Personalización por Producto Coherente
+  // Acompañamientos configurados exclusivamente para el producto seleccionado
   const [customizingProduct, setCustomizingProduct] = React.useState(null);
-  const [selectedCustomizations, setSelectedCustomizations] = React.useState([]);
-  const [customNotes, setCustomNotes] = React.useState('');
-  const [showAudioRecorder, setShowAudioRecorder] = React.useState(false);
-  const [attachedAudio, setAttachedAudio] = React.useState(null);
+  const [availableModifiers, setAvailableModifiers] = React.useState([]);
+  const [selectedModifiers, setSelectedModifiers] = React.useState([]);
 
-  // Modal para Quitar Producto con Motivo Escrito Obligatorio
+  // Confirmación para quitar producto
   const [removingItemIndex, setRemovingItemIndex] = React.useState(null);
-  const [writtenReason, setWrittenReason] = React.useState('');
-  const [managerPin, setManagerPin] = React.useState('');
   const [removeError, setRemoveError] = React.useState('');
 
   const tables = [
@@ -100,10 +95,49 @@ export default function SaloneroView({ activeSessionUser }) {
     };
   }, [loadData]);
 
-  // Abrir Modal de Personalizaciones Coherentes según la Categoría del Producto
-  const handleOpenCustomize = async (prod) => {
+  const addProductToCart = (prod, modifiers = []) => {
+    const sortedModifiers = [...modifiers].sort((a, b) => a.id.localeCompare(b.id));
+    const customizationIds = sortedModifiers.map(modifier => modifier.id);
+    const customizationKey = customizationIds.join('|');
+    const modifierNames = sortedModifiers.map(modifier => modifier.name);
+    const extraPrice = sortedModifiers.reduce((sum, modifier) => sum + Number(modifier.extra_price || 0), 0);
+
+    setCartItems(currentItems => {
+      const existingIndex = currentItems.findIndex(item =>
+        item.product_id === prod.id &&
+        (item.customizations || []).slice().sort().join('|') === customizationKey &&
+        !item.audioMemo
+      );
+
+      if (existingIndex >= 0) {
+        return currentItems.map((item, index) =>
+          index === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+
+      return [
+        ...currentItems,
+        {
+          line_id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          product_id: prod.id,
+          product_name: prod.name,
+          unit_price: Number(prod.base_price ?? prod.price ?? 0) + extraPrice,
+          quantity: 1,
+          customizations: customizationIds,
+          notes: modifierNames.join(', '),
+          audioMemo: null
+        }
+      ];
+    });
+  };
+
+  // Solo abre confirmación si el administrador configuró opciones para el producto.
+  const handleAddProduct = async (prod) => {
     setStockWarning(null);
-    const availability = await checkProductStockAvailability(prod.id, 1);
+    const [availability, productModifiers] = await Promise.all([
+      checkProductStockAvailability(prod.id, 1),
+      getProductModifiers(prod.id)
+    ]);
 
     if (!availability.available) {
       setStockWarning({
@@ -116,34 +150,22 @@ export default function SaloneroView({ activeSessionUser }) {
       return;
     }
 
+    if (productModifiers.length === 0) {
+      addProductToCart(prod);
+      return;
+    }
+
     setCustomizingProduct(prod);
-    setSelectedCustomizations([]);
-    setCustomNotes('');
-    setShowAudioRecorder(false);
-    setAttachedAudio(null);
+    setAvailableModifiers(productModifiers);
+    setSelectedModifiers([]);
   };
 
-  const handleConfirmCustomization = () => {
+  const handleConfirmModifiers = () => {
     if (!customizingProduct) return;
-
-    let extraPrice = 0;
-    if (selectedCustomizations.includes('QUESO_EXTRA')) extraPrice += 800;
-    const unitPrice = customizingProduct.base_price + extraPrice;
-
-    setCartItems([
-      ...cartItems,
-      {
-        product_id: customizingProduct.id,
-        product_name: customizingProduct.name,
-        unit_price: unitPrice,
-        quantity: 1,
-        customizations: selectedCustomizations,
-        notes: customNotes.trim(),
-        audioMemo: attachedAudio
-      }
-    ]);
-
+    addProductToCart(customizingProduct, selectedModifiers);
     setCustomizingProduct(null);
+    setAvailableModifiers([]);
+    setSelectedModifiers([]);
   };
 
   const handleConfirmOrder = async () => {
@@ -204,11 +226,6 @@ export default function SaloneroView({ activeSessionUser }) {
     e.preventDefault();
     setRemoveError('');
 
-    if (!writtenReason || writtenReason.trim().length < 8) {
-      setRemoveError('Debe escribir la explicación del motivo (mínimo 8 caracteres).');
-      return;
-    }
-
     const activeOrd = orders.find(o => o.table_id === activeTable.id && o.status !== 'PAGADO');
     if (!activeOrd) return;
 
@@ -217,15 +234,12 @@ export default function SaloneroView({ activeSessionUser }) {
       await removeItemFromOrder({
         orderId: activeOrd.id,
         itemIndex: removingItemIndex,
-        writtenReason: writtenReason,
+        writtenReason: 'Retiro confirmado por el usuario',
         userName: activeUser.name,
-        managerPin: managerPin
       });
 
       setIsSubmitting(false);
       setRemovingItemIndex(null);
-      setWrittenReason('');
-      setManagerPin('');
       await loadData();
     } catch (err) {
       setIsSubmitting(false);
@@ -245,11 +259,6 @@ export default function SaloneroView({ activeSessionUser }) {
   const filteredProducts = selectedCategory === 'ALL'
     ? products
     : products.filter(p => p.category_id === selectedCategory);
-
-  // Obtener Opciones Coherentes del Producto Activo
-  const currentModifiers = customizingProduct 
-    ? (PRODUCT_SPECIFIC_MODIFIERS[customizingProduct.category_id] || PRODUCT_SPECIFIC_MODIFIERS['cat-carnes-res'])
-    : [];
 
   return (
     <div className="space-y-6">
@@ -304,6 +313,8 @@ export default function SaloneroView({ activeSessionUser }) {
           return (
             <div
               key={t.id}
+              data-occupied={Boolean(activeOrd)}
+              data-process={processState(activeOrd?.account_status === 'EN_COBRO' ? 'EN_COBRO' : activeOrd?.status || 'DISPONIBLE').tone}
               onClick={() => setActiveTable(t)}
               className={`glass-card p-4 rounded-3xl border cursor-pointer flex flex-col justify-between min-h-[170px] transition-all bg-[#fffdf9] ${
                 activeOrd 
@@ -318,20 +329,10 @@ export default function SaloneroView({ activeSessionUser }) {
               }`}
             >
               <div>
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-2 gap-2">
                   <h3 className="font-bold text-sm text-[#1f1209]">{t.name} <span className="text-xs text-[#3d2717] font-mono">({t.capacity}p)</span></h3>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    activeOrd 
-                      ? activeOrd.account_status === 'EN_COBRO'
-                        ? 'bg-purple-100 text-purple-900 border-purple-300'
-                        : activeOrd.status === 'ESPERANDO_CUENTA'
-                        ? 'bg-indigo-100 text-indigo-900 border-indigo-300'
-                        : activeOrd.status === 'LISTO_PARA_ENTREGA' || activeOrd.status === 'listo'
-                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                        : 'bg-[#5d402b]/15 text-[#5d402b] border-[#5d402b]/30' 
-                      : 'bg-[#46593a]/20 text-[#1f2d17] border-[#46593a]/40'
-                  }`}>
-                    {activeOrd ? (activeOrd.account_status === 'EN_COBRO' ? 'En Cobro' : `Estado: ${activeOrd.status}`) : 'Disponible'}
+                  <span className="process-badge" data-process={processState(activeOrd?.account_status === 'EN_COBRO' ? 'EN_COBRO' : activeOrd?.status || 'DISPONIBLE').tone}>
+                    {activeOrd ? 'OCUPADA · ' : ''}{processState(activeOrd?.account_status === 'EN_COBRO' ? 'EN_COBRO' : activeOrd?.status || 'DISPONIBLE').label}
                   </span>
                 </div>
                 <p className="text-xs text-[#3d2717] font-bold">{t.zone}</p>
@@ -369,7 +370,7 @@ export default function SaloneroView({ activeSessionUser }) {
       {/* Modal de Toma / Modificación de Pedido */}
       {activeTable && (
         <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-7xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh]">
             <div className="bg-[#2c1d13] text-[#f7f2e9] border-b border-[#422c1d] p-4 flex justify-between items-center">
               <div>
                 <h3 className="font-heading font-extrabold text-base text-[#f7f2e9]">Gestionar Pedido - {activeTable.name}</h3>
@@ -388,9 +389,9 @@ export default function SaloneroView({ activeSessionUser }) {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-hidden bg-[#faf6ee]">
+              <div className="grid grid-cols-1 md:grid-cols-12 flex-1 min-h-0 overflow-y-auto md:overflow-hidden bg-[#faf6ee]">
                 {/* Selección del Menú La Vid 2025 Left */}
-                <div className="md:col-span-7 p-4 border-r border-[#dac8b3] overflow-y-auto space-y-3">
+                <div className="md:col-span-8 min-h-0 p-5 border-r border-[#dac8b3] overflow-visible md:overflow-y-auto space-y-4">
                   <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                     <button
                       onClick={() => setSelectedCategory('ALL')}
@@ -416,16 +417,24 @@ export default function SaloneroView({ activeSessionUser }) {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {filteredProducts.map(prod => (
                       <div
                         key={prod.id}
-                        onClick={() => handleOpenCustomize(prod)}
-                        className="glass-card p-3.5 rounded-2xl border border-[#dac8b3] bg-[#fffdf9] hover:border-[#5d402b] cursor-pointer flex flex-col justify-between shadow-sm transition-all"
+                        onClick={() => handleAddProduct(prod)}
+                        className="glass-card p-4 min-h-[150px] rounded-2xl border border-[#dac8b3] bg-[#fffdf9] hover:border-[#5d402b] cursor-pointer flex flex-col justify-between shadow-sm transition-all"
                       >
                         <div>
+                          {prod.image_url && (
+                            <img
+                              src={prod.image_url}
+                              alt={prod.name}
+                              className="w-full h-24 object-contain rounded-xl border border-[#dac8b3] bg-[#fffdf9] mb-3"
+                              loading="lazy"
+                            />
+                          )}
                           <div className="flex justify-between items-start">
-                            <h4 className="font-heading font-extrabold text-xs text-[#1f1209]">{prod.name}</h4>
+                            <h4 className="font-heading font-extrabold text-sm text-[#1f1209]">{prod.name}</h4>
                             {prod.is_gluten_free && <span className="bg-[#46593a]/20 text-[#1f2d17] text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#46593a]/40">GF</span>}
                           </div>
                           <p className="text-[11px] text-[#3d2717] font-semibold mt-1 line-clamp-2 leading-relaxed">{prod.description}</p>
@@ -442,18 +451,18 @@ export default function SaloneroView({ activeSessionUser }) {
                 </div>
 
                 {/* Comanda en Servicio y Productos Activos Right */}
-                <div className="md:col-span-5 p-4 bg-[#f5efe6] flex flex-col justify-between space-y-4 border-t md:border-t-0 border-[#dac8b3]">
-                  <div className="space-y-3">
+                <div className="md:col-span-4 min-h-0 p-5 bg-[#f5efe6] flex flex-col gap-4 border-t md:border-t-0 border-[#dac8b3]">
+                  <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
                     {orders.find(o => o.table_id === activeTable.id && o.status !== 'PAGADO') && (
                       <div>
                         <h4 className="font-heading font-extrabold text-xs text-[#1f1209] mb-1">Productos Registrados en Mesa</h4>
-                        <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
+                        <div className="space-y-1.5">
                           {orders.find(o => o.table_id === activeTable.id && o.status !== 'PAGADO')?.items.map((item, idx) => (
                             <div key={idx} className={`p-2 rounded-xl border flex justify-between items-center text-xs ${
                               item.status === 'RETIRADO_DE_CUENTA' ? 'bg-rose-100 border-rose-300 opacity-60 line-through text-[#802319]' : 'bg-[#fffdf9] border-[#dac8b3] text-[#1f1209]'
                             }`}>
                               <div>
-                                <p className="font-bold text-[#1f1209]">{item.quantity}x {item.product_name}</p>
+                                <p className="font-bold text-[#1f1209]">{item.product_name} ×{item.quantity}</p>
                                 {item.notes && <p className="text-[10px] text-[#5d402b] font-mono font-bold">[{item.notes}]</p>}
                                 {item.audioMemo && (
                                   <p className="text-[10px] text-sky-800 font-bold flex items-center gap-1">
@@ -466,8 +475,6 @@ export default function SaloneroView({ activeSessionUser }) {
                                   type="button"
                                   onClick={() => {
                                     setRemovingItemIndex(idx);
-                                    setWrittenReason('');
-                                    setManagerPin('');
                                     setRemoveError('');
                                   }}
                                   className="p-1 bg-rose-100 text-[#802319] hover:bg-rose-200 border border-rose-300 rounded-lg text-[10px] font-bold"
@@ -483,18 +490,18 @@ export default function SaloneroView({ activeSessionUser }) {
 
                     <div>
                       <h4 className="font-heading font-extrabold text-xs text-[#1f1209] mb-1">Adiciones Nuevas ({cartItems.length})</h4>
-                      <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                      <div className="space-y-2">
                         {cartItems.map((item, idx) => (
-                          <div key={idx} className="bg-[#fffdf9] p-2.5 rounded-2xl border border-[#dac8b3] flex justify-between text-xs shadow-sm">
+                          <div key={item.line_id || `${item.product_id}-${idx}`} className="bg-[#fffdf9] p-2.5 rounded-2xl border border-[#dac8b3] flex justify-between text-xs shadow-sm">
                             <div>
-                              <p className="font-bold text-[#1f1209]">{item.product_name}</p>
-                              {item.notes && <p className="text-[10px] text-[#5d402b] font-mono font-bold">[{item.notes}]</p>}
-                              {item.audioMemo && <p className="text-[10px] text-sky-800 font-bold">🎤 Audio Grabado ({item.audioMemo.duration}s)</p>}
+                              <p className="font-bold text-[#1f1209]">{item.product_name} ×{item.quantity}</p>
+                              {item.notes && <p className="text-[10px] text-[#5d402b] font-mono font-bold">{item.notes}</p>}
+                              {item.audioMemo && <p className="text-[10px] text-sky-800 font-bold">Audio grabado ({item.audioMemo.duration}s)</p>}
                               <p className="text-[10px] text-[#5d402b] font-mono font-extrabold">₡{(item.unit_price * item.quantity).toLocaleString()}</p>
                             </div>
                             <button
                               type="button"
-                              onClick={() => setCartItems(cartItems.filter((_, i) => i !== idx))}
+                              onClick={() => setCartItems(current => current.filter((_, i) => i !== idx))}
                               className="text-rose-700 font-bold px-2 hover:bg-rose-100 rounded-lg"
                             >
                               ✕
@@ -508,7 +515,7 @@ export default function SaloneroView({ activeSessionUser }) {
                   <button
                     onClick={handleConfirmOrder}
                     disabled={cartItems.length === 0 || isSubmitting}
-                    className="w-full bg-[#5d402b] hover:bg-[#483120] text-[#fffdf9] font-extrabold text-xs py-3.5 rounded-2xl transition-all shadow-lg border border-[#3e2718] disabled:opacity-50"
+                    className="w-full shrink-0 bg-[#5d402b] hover:bg-[#483120] text-[#fffdf9] font-extrabold text-xs py-3.5 rounded-2xl transition-all shadow-lg border border-[#3e2718] disabled:opacity-50"
                   >
                     {isSubmitting ? 'Procesando Transacción...' : 'ENVIAR A COCINA & ACTUALIZAR CUENTA'}
                   </button>
@@ -519,84 +526,71 @@ export default function SaloneroView({ activeSessionUser }) {
         </div>
       )}
 
-      {/* Modal de Personalizaciones Coherentes + Grabador de Audio */}
+      {/* Confirmación únicamente para productos con acompañamientos configurados */}
       {customizingProduct && (
-        <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-[#dac8b3] pb-3">
+        <div className="fixed inset-0 z-[60] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-[#dac8b3] pb-3">
               <div>
-                <h3 className="font-heading font-extrabold text-base text-[#1f1209]">Personalizar {customizingProduct.name}</h3>
-                <p className="text-xs text-[#3d2717] font-semibold">Opciones e ingredientes de {customizingProduct.category_id}</p>
+                <h3 className="font-heading font-extrabold text-base text-[#1f1209]">{customizingProduct.name}</h3>
+                <p className="text-xs text-[#3d2717] mt-1">Selecciona los acompañamientos para este producto.</p>
               </div>
-              <button onClick={() => setCustomizingProduct(null)} className="text-[#3d2717] hover:text-[#1f1209] font-bold">✕</button>
+              <button
+                type="button"
+                onClick={() => setCustomizingProduct(null)}
+                className="p-1.5 bg-[#f5efe6] text-[#3d2717] rounded-lg border border-[#dac8b3]"
+                aria-label="Cerrar"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="space-y-3">
-              <label className="text-xs font-extrabold text-[#1f1209] uppercase tracking-wider block font-mono">Opciones e Ingredientes</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {currentModifiers.map(opt => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto pr-1">
+              {availableModifiers.map(modifier => {
+                const selected = selectedModifiers.some(item => item.id === modifier.id);
+                return (
                   <button
-                    key={opt.id}
+                    key={modifier.id}
                     type="button"
-                    onClick={() => {
-                      if (selectedCustomizations.includes(opt.id)) {
-                        setSelectedCustomizations(selectedCustomizations.filter(i => i !== opt.id));
-                      } else {
-                        setSelectedCustomizations([...selectedCustomizations, opt.id]);
-                      }
-                    }}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition-all text-left ${
-                      selectedCustomizations.includes(opt.id) ? 'bg-[#5d402b] text-[#fffdf9] border-[#3e2718]' : 'bg-[#fffdf9] border-[#dac8b3] text-[#1f1209] hover:bg-[#f5efe6]'
+                    onClick={() => setSelectedModifiers(current =>
+                      selected
+                        ? current.filter(item => item.id !== modifier.id)
+                        : [...current, modifier]
+                    )}
+                    className={`p-3 rounded-xl border text-xs font-bold text-left flex items-center justify-between gap-2 transition-all ${
+                      selected
+                        ? 'bg-[#5d402b] text-[#fffdf9] border-[#3e2718]'
+                        : 'bg-[#fffdf9] text-[#1f1209] border-[#dac8b3]'
                     }`}
                   >
-                    {opt.label}
+                    <span>{modifier.name}</span>
+                    {selected && <Check className="w-4 h-4 shrink-0" />}
                   </button>
-                ))}
-              </div>
-
-              <div>
-                <label className="text-xs font-extrabold text-[#1f1209] uppercase tracking-wider block mb-1 font-mono">Indicación Especial Escrita</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Servir salsa en recipiente separado..."
-                  value={customNotes}
-                  onChange={(e) => setCustomNotes(e.target.value)}
-                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold placeholder-[#3d2717]/60"
-                />
-              </div>
-
-              {/* Botón & Grabador por Audio */}
-              <div className="pt-2">
-                {!showAudioRecorder ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowAudioRecorder(true)}
-                    className="w-full bg-[#fffdf9] hover:bg-[#f5efe6] text-[#5d402b] border border-[#dac8b3] text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm"
-                  >
-                    <Mic className="w-4 h-4 text-[#5d402b]" />
-                    <span>{attachedAudio ? '🔊 Audio Adjunto (Cambiar)' : '🎤 Grabar Indicación por Audio'}</span>
-                  </button>
-                ) : (
-                  <AudioMemoRecorder
-                    onAudioRecorded={(data) => {
-                      setAttachedAudio(data);
-                      setShowAudioRecorder(false);
-                    }}
-                    onCancel={() => setShowAudioRecorder(false)}
-                  />
-                )}
-              </div>
+                );
+              })}
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-[#dac8b3]">
-              <button type="button" onClick={() => setCustomizingProduct(null)} className="px-4 py-2 bg-[#fffdf9] border border-[#dac8b3] text-[#3d2717] text-xs font-bold rounded-xl hover:bg-[#f5efe6]">Cancelar</button>
-              <button type="button" onClick={handleConfirmCustomization} className="px-4 py-2 bg-[#5d402b] text-[#fffdf9] font-bold text-xs rounded-xl shadow-md border border-[#3e2718]">Agregar al Pedido</button>
+            <div className="pt-3 border-t border-[#dac8b3] flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCustomizingProduct(null)}
+                className="px-4 py-2 bg-[#f5efe6] text-[#231710] font-bold text-xs rounded-xl border border-[#dac8b3]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmModifiers}
+                className="px-5 py-2 bg-[#5d402b] text-[#fffdf9] font-extrabold text-xs rounded-xl border border-[#3e2718]"
+              >
+                Agregar al Pedido
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal para Quitar Producto con Motivo Escrito Obligatorio */}
+      {/* Confirmación para quitar producto */}
       {removingItemIndex !== null && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="glass-panel border border-slate-700 w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
@@ -605,33 +599,7 @@ export default function SaloneroView({ activeSessionUser }) {
             </h3>
 
             <form onSubmit={handleConfirmRemoveItem} className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Motivo Escrito Obligatorio (Mínimo 8 caracteres)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Explique el motivo (Ej. El producto no fue entregado a la mesa)..."
-                  value={writtenReason}
-                  onChange={(e) => setWrittenReason(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  PIN de Autorización (Si ya fue preparado)
-                </label>
-                <input
-                  type="password"
-                  maxLength={8}
-                  placeholder="PIN Autorización Gerente"
-                  value={managerPin}
-                  onChange={(e) => setManagerPin(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-amber-400"
-                />
-              </div>
+              <p className="text-sm">¿Estás seguro de que querés quitar este producto del pedido? El total de la cuenta se actualizará automáticamente.</p>
 
               {removeError && (
                 <div className="bg-rose-500/20 border border-rose-500/40 p-2.5 rounded-xl text-xs text-rose-300 font-bold">
@@ -641,7 +609,7 @@ export default function SaloneroView({ activeSessionUser }) {
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setRemovingItemIndex(null)} className="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl">Confirmar Retiro DB</button>
+                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl disabled:opacity-50">{isSubmitting ? 'Quitando…' : 'Sí, quitar producto'}</button>
               </div>
             </form>
           </div>

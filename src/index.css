@@ -2,34 +2,27 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-/* =============================================================================
-   GASTROFLOW OS - PALETA EXCLUSIVA STEAKHOUSE CÁLIDA & ELEGANTE DE LA VID
-   Color de Texto Café Intenso Profundo (#1F1209 y #3D2717) para máxima legibilidad en todas las vistas:
-   Menú, Mesas, Reservas, Facturación, Caja y Administración.
-   ============================================================================= */
+/* GastroFlow OS — interfaz operativa, sobria y de alto contraste. */
 
 :root {
-  --font-serif: "Times New Roman", Times, Georgia, serif;
-  --font-sans: "Times New Roman", Times, Georgia, serif;
-  --font-heading: "Times New Roman", Times, Georgia, serif;
-  --font-mono: 'JetBrains Mono', "Times New Roman", monospace;
+  --font-serif: Arial, Helvetica, sans-serif;
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-heading: Arial, Helvetica, sans-serif;
+  --font-mono: Arial, Helvetica, sans-serif;
 
-  /* Paleta Exclusiva Steakhouse */
-  --bg-main: #f5efe6;
-  --bg-surface: #faf6ee;
-  --bg-card: #fffdf9;
-  --bg-sidebar: #2c1d13;
-  --sidebar-text: #f7f2e9;
-  --primary-color: #5d402b;
-  --primary-hover: #483120;
-  --primary-text: #fefcf9;
-  --secondary-color: #d8c4a7;
-  --secondary-text: #1f1209;
-  
-  /* Color Café Intenso para Máxima Legibilidad */
-  --text-main: #1f1209;
-  --text-muted: #3d2717;
-  --border-color: #dac8b3;
+  --bg-main: #f1f5f9;
+  --bg-surface: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-sidebar: #0f172a;
+  --sidebar-text: #e2e8f0;
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-text: #ffffff;
+  --secondary-color: #dbeafe;
+  --secondary-text: #0f172a;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border-color: #dbe3ee;
   --font-base-size: 14px;
   --padding-density: 1rem;
 }
@@ -50,9 +43,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+*, *::before, *::after { box-sizing: border-box; }
+
+button, input, select, textarea { max-width: 100%; }
+
 h1, h2, h3, h4, h5, h6, .font-heading, .font-sans {
   font-family: var(--font-serif);
-  color: #1f1209;
+  color: var(--text-main);
 }
 
 p, span, label, td, th, input, select, textarea {
@@ -63,33 +60,32 @@ p, span, label, td, th, input, select, textarea {
   font-family: var(--font-mono);
 }
 
-/* Paneles & Tarjetas Steakhouse Elegantes */
 .glass-panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
-  box-shadow: 0 4px 20px -2px rgba(44, 29, 19, 0.08);
-  color: #1f1209;
+  box-shadow: 0 8px 24px -16px rgba(15, 23, 42, 0.22);
+  color: var(--text-main);
 }
 
 .glass-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  box-shadow: 0 2px 10px 0 rgba(44, 29, 19, 0.05);
+  box-shadow: 0 4px 16px -12px rgba(15, 23, 42, 0.2);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  color: #1f1209;
+  color: var(--text-main);
 }
 
 .glass-card:hover {
   border-color: var(--primary-color);
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px -4px rgba(93, 64, 43, 0.18);
+  box-shadow: 0 10px 24px -14px rgba(37, 99, 235, 0.35);
 }
 
 /* Reglas de Contraste Automático de Texto Café Intenso */
 .btn-steakhouse-primary {
   background-color: var(--primary-color);
   color: var(--primary-text) !important;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-weight: 700;
   border-radius: 0.85rem;
   transition: all 0.2s ease;
@@ -97,13 +93,13 @@ p, span, label, td, th, input, select, textarea {
 
 .btn-steakhouse-primary:hover {
   background-color: var(--primary-hover);
-  box-shadow: 0 4px 12px rgba(72, 49, 32, 0.25);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .btn-steakhouse-secondary {
   background-color: var(--secondary-color);
   color: var(--secondary-text) !important;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-weight: 700;
   border-radius: 0.85rem;
   border: 1px solid var(--border-color);
@@ -111,7 +107,7 @@ p, span, label, td, th, input, select, textarea {
 }
 
 .btn-steakhouse-secondary:hover {
-  background-color: #ccb696;
+  background-color: #bfdbfe;
 }
 
 /* Estilos de Densidad de Pantalla */
@@ -125,7 +121,6 @@ p, span, label, td, th, input, select, textarea {
   padding: 0.65rem !important;
 }
 
-/* Scrollbars Amaderados Elegantes */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -162,7 +157,164 @@ p, span, label, td, th, input, select, textarea {
   scrollbar-width: none;
 }
 
+/* Compatibilidad visual: las vistas existentes usaban una paleta café fija.
+   Estos selectores conservan sus jerarquías sin que el color antiguo reaparezca. */
+.bg-\[\#f5efe6\], .bg-\[\#faf6ee\], .bg-\[\#fffdf9\] { background-color: var(--bg-card) !important; }
+.bg-\[\#2c1d13\], .bg-\[\#1f140d\], .bg-\[\#160e09\], .bg-\[\#21160e\], .bg-\[\#291b12\], .bg-\[\#0d0805\] { background-color: var(--bg-sidebar) !important; }
+.bg-\[\#5d402b\], .bg-\[\#3e2718\], .bg-\[\#735036\] { background-color: var(--primary-color) !important; }
+.bg-\[\#e5ded4\], .bg-\[\#e2d7c5\], .bg-\[\#d8c4a7\] { background-color: #e2e8f0 !important; }
+.border-\[\#dac8b3\], .border-\[\#422c1d\], .border-\[\#4a3324\], .border-\[\#3e2718\] { border-color: var(--border-color) !important; }
+.text-\[\#231710\], .text-\[\#1f1209\], .text-\[\#3d2717\] { color: var(--text-main) !important; }
+.text-\[\#6e5a4b\], .text-\[\#c4b1a1\], .text-\[\#d8c4a7\] { color: var(--text-muted) !important; }
+.text-\[\#f7f2e9\], .text-\[\#fffdf9\], .text-\[\#fbf7f0\] { color: #fff !important; }
+.text-amber-300, .text-amber-400 { color: #2563eb !important; }
+.bg-amber-500, .bg-amber-500\/20 { background-color: #2563eb !important; }
+.border-amber-500, .border-amber-500\/30, .border-amber-500\/40 { border-color: #93c5fd !important; }
+
+@media (max-width: 767px) {
+  body { font-size: 14px; }
+  .glass-panel, .glass-card { border-radius: 1rem; }
+  .fixed.inset-0 { padding: .75rem; align-items: flex-end; }
+  .fixed.inset-0 > .glass-panel, .fixed.inset-0 > .glass-card { max-height: calc(100dvh - 1.5rem); overflow-y: auto; }
+}
+
+/* Componentes operativos La Vid. Superficies y texto se definen juntos. */
+:root {
+  --report-accent: #66513f;
+  --bg-main: #f4f1eb; --bg-surface: #faf8f4; --bg-card: #fffdf9;
+  --bg-sidebar: #29251f; --sidebar-text: #f4eee5;
+  --primary-color: #66513f; --primary-hover: #4b3c2f; --primary-text: #ffffff;
+  --secondary-color: #eae4da; --secondary-text: #342d25;
+  --text-main: #302b25; --text-muted: #6c6257; --border-color: #ded7cc;
+}
+.restaurant-reports {
+  --dashboard-text-main: #17130f;
+  --dashboard-text-muted: #453a30;
+  --dashboard-success: #166534;
+  --dashboard-danger: #991b1b;
+  --text-muted: var(--dashboard-text-muted);
+  color: var(--dashboard-text-main);
+}
+.restaurant-reports :is(.report-title, .report-card h3, .report-card strong, .report-table td) { color: var(--dashboard-text-main); }
+.report-title { font-family: Arial, Helvetica, sans-serif; font-size: clamp(2rem,3.5vw,3.4rem); font-weight: 700; line-height: 1.12; letter-spacing: -.045em; }
+.report-eyebrow { color: var(--dashboard-text-muted); font-size: 10px; letter-spacing: .2em; margin-bottom: 16px; font-weight: 700; }
+.report-muted { color: var(--dashboard-text-muted); }
+.report-stage { background: var(--secondary-color); border-color: var(--border-color); }
+.report-card, .ui-menu { min-width: 0; background: var(--bg-card); color: var(--text-main); border-color: var(--border-color); }
+.report-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.report-segment { display: inline-flex; gap: 3px; padding: 4px; border: 1px solid var(--border-color); border-radius: 9px; background: var(--bg-surface); }
+.report-segment button { padding: 8px 12px; border-radius: 6px; font-size: 12px; color: var(--dashboard-text-muted); font-weight: 600; }
+.report-segment button.selected { background: var(--primary-color); color: var(--primary-text); }
+.report-track { background: var(--secondary-color); }
+.report-bar { background: var(--report-accent); transition: width .3s; }
+.report-empty { padding: 28px 0; text-align: center; font-size: 13px; color: var(--dashboard-text-muted); font-weight: 600; }
+.report-chart-readout { min-height: 24px; font-size: 12px; color: var(--dashboard-text-muted); font-weight: 600; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.report-table th { color: var(--dashboard-text-muted); font-weight: 700; text-align: left; }
+.report-table th, .report-table td { padding: 13px 8px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+.report-table .text-right { text-align: right; }
+.report-error { border: 1px solid #dc2626; background: #fef2f2; color: var(--dashboard-danger); padding: 16px; border-radius: 10px; font-size: 13px; font-weight: 700; }
+.report-status-success { border-color: #86b998; background: #dcfce7; color: var(--dashboard-success); font-weight: 700; }
+.report-status-danger { border-color: #f0a1a1; background: #fee2e2; color: var(--dashboard-danger); font-weight: 700; }
+.report-status-neutral { color: var(--dashboard-text-main); font-weight: 700; }
+.ui-button-primary { color: var(--primary-text); background: var(--primary-color); border-color: var(--primary-color); }
+.ui-button-primary:hover { background: var(--primary-hover); }
+.ui-button-secondary { color: var(--text-main); background: var(--secondary-color); border-color: var(--border-color); }
+.ui-button-outline { color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-color); }
+.ui-button-ghost { color: inherit; background: transparent; }
+.ui-button-ghost:hover, .ui-menu-item[data-highlighted] { background: var(--secondary-color); color: var(--text-main); }
+.ui-button-destructive { background: #703e34; color: white; }
+.restaurant-sidebar { width: 240px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 12px; height: calc(100dvh - 110px); min-height: 500px; display: flex; flex-direction: column; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden; transition: width .2s; }
+.restaurant-sidebar.is-collapsed { width: 68px; }
+.nav-brand { display: flex; align-items: center; gap: 9px; padding: 18px 12px; min-height: 80px; }
+.nav-monogram { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--border-color); border-radius: 7px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; }
+.nav-brand strong { font-family: Arial, Helvetica, sans-serif; font-size: 20px; font-weight: 700; }
+.nav-brand small { display: block; color: var(--text-muted); font-size: 10px; white-space: nowrap; }
+.nav-collapse { margin-left: auto; width: 26px; height: 30px; flex-shrink: 0; }
+.nav-scroll { flex: 1; min-height: 0; }
+.nav-items { padding: 14px 10px; }
+.nav-section-title { padding: 0 10px 10px; font-size: 9px; letter-spacing: .18em; color: var(--text-muted); }
+.nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 10px; border-radius: 7px; font-size: 12px; text-align: left; white-space: nowrap; color: var(--text-muted); margin-bottom: 3px; }
+.nav-item svg { flex-shrink: 0; }
+.nav-item:hover { background: var(--bg-surface); color: var(--text-main); }
+.nav-item.is-active { background: var(--secondary-color); color: var(--text-main); font-weight: 600; box-shadow: inset 2px 0 var(--report-accent); }
+.nav-account { padding: 10px; }
+.nav-account small { color: var(--text-muted); font-size: 10px; }
+.is-collapsed .nav-label { display: none; }
+.is-collapsed .nav-brand { padding-inline: 6px; flex-wrap: wrap; justify-content: center; }
+.is-collapsed .nav-collapse { margin: 0; }
+.is-collapsed .nav-item { justify-content: center; }
+button:focus-visible, a:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--report-accent); outline-offset: 3px; }
+/* Los paneles oscuros conservan texto claro. */
+:is(.bg-slate-900,.bg-slate-800,.bg-slate-950,.bg-\[\#2c1d13\],.bg-\[\#1f140d\]) { color: #f3ece3; }
+:is(.bg-slate-900,.bg-slate-800,.bg-slate-950,.bg-\[\#2c1d13\],.bg-\[\#1f140d\]) :is(h1,h2,h3,h4,p,span,label) { color: inherit; }
+.text-amber-300,.text-amber-400 { color: var(--report-accent) !important; }
+.bg-amber-500,.bg-amber-500\/20 { background-color: var(--primary-color) !important; }
+.border-amber-500,.border-amber-500\/30,.border-amber-500\/40 { border-color: var(--border-color) !important; }
+[data-theme-mode="dark"] { --report-accent: #c8b69e; }
+[data-theme-mode="dark"] .restaurant-reports {
+  --dashboard-text-main: #ffffff;
+  --dashboard-text-muted: #ddd2c4;
+  --dashboard-success: #86efac;
+  --dashboard-danger: #fca5a5;
+}
+[data-theme-mode="dark"] :is(.report-status-success, .report-status-danger) { background: #29251f; }
+:root:not([data-theme-mode="dark"]) :is(.glass-panel,.glass-card) > :is(.text-slate-100,.text-slate-200,.text-slate-300,.text-slate-400) { color: var(--text-main); }
+:root:not([data-theme-mode="dark"]) :is(.glass-panel,.glass-card) :is(label.text-slate-400,h3.text-slate-100) { color: var(--text-main); }
+@media(max-width:767px) {
+  .restaurant-sidebar,.restaurant-sidebar.is-collapsed { position: static; width: 100%; height: auto; min-height: 0; border-radius: 10px; }
+  .nav-brand,.nav-account,.nav-section-title { display: none; }
+  .nav-scroll { overflow: auto; }
+  .nav-items { display: flex; gap: 6px; padding: 8px; overflow-x: auto; }
+  .nav-item { width: auto; margin: 0; font-size: 11px; }
+  .is-collapsed .nav-item .nav-label { display: inline; }
+  .report-title { font-size: 2rem; }
+}
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Fondo blanco y estados operativos de alto contraste. */
+:root {
+  --bg-main: #ffffff !important;
+  --bg-surface: #ffffff !important;
+  --bg-card: #ffffff !important;
+  --text-main: #171717 !important;
+  --text-muted: #404040 !important;
+}
+.report-stage { background: #ffffff; }
+.restaurant-reports, [data-theme-mode="dark"] .restaurant-reports {
+  --dashboard-text-main: #171717;
+  --dashboard-text-muted: #404040;
+  --dashboard-danger: #991b1b;
+  --dashboard-success: #166534;
+}
+[data-process="ready"] { --process-color: #15803d; --process-soft: #dcfce7; --process-text: #14532d; }
+[data-process="new"] { --process-color: #1d4ed8; --process-soft: #dbeafe; --process-text: #1e3a8a; }
+[data-process="progress"] { --process-color: #c2410c; --process-soft: #ffedd5; --process-text: #9a3412; }
+[data-process="occupied"], [data-process="danger"] { --process-color: #b91c1c; --process-soft: #fee2e2; --process-text: #991b1b; }
+[data-process="billing"] { --process-color: #7e22ce; --process-soft: #f3e8ff; --process-text: #581c87; }
+[data-process="reserved"] { --process-color: #0e7490; --process-soft: #cffafe; --process-text: #164e63; }
+.glass-card[data-process] { border: 2px solid var(--process-color) !important; border-top-width: 7px !important; }
+.glass-card[data-occupied="true"] { border-left: 8px solid #b91c1c !important; }
+.process-badge, .ui-button-secondary.process-badge {
+  display: inline-block;
+  background: var(--process-soft) !important;
+  color: var(--process-text) !important;
+  border: 1px solid var(--process-color) !important;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 800;
+}
 /* Impresión Factura Electrónica Costa Rica v4.3 */
+#printable-invoice,
+#printable-invoice .font-serif,
+#printable-invoice .font-heading,
+#printable-invoice .font-sans {
+  font-family: Inter, Arial, sans-serif !important;
+}
+#printable-invoice .font-mono {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace !important;
+}
 @media print {
   body * {
     visibility: hidden !important;

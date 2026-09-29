@@ -1,0 +1,161 @@
+[ 1427763ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:21550
+[ 1429332ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://localhost:3000/src/services/liveSync.js:95
+[ 1429776ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429776ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429777ms] TypeError: Cannot read properties of null (reading 'useMemo')
+    at Object.useMemo (http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:1094:29)
+    at R (http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:24:32)
+    at http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:53:11
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:11548:26)
+    at updateForwardRef (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:14325:28)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:15946:22)
+    at HTMLUnknownElement.callCallback2 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3674:22)
+    at Object.invokeGuardedCallbackDev (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3699:24)
+    at invokeGuardedCallback (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3733:39)
+    at beginWork$1 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19765:15)
+[ 1429778ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429778ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429778ms] TypeError: Cannot read properties of null (reading 'useMemo')
+    at Object.useMemo (http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:1094:29)
+    at R (http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:24:32)
+    at http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:53:11
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:11548:26)
+    at updateForwardRef (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:14325:28)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:15946:22)
+    at HTMLUnknownElement.callCallback2 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3674:22)
+    at Object.invokeGuardedCallbackDev (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3699:24)
+    at invokeGuardedCallback (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3733:39)
+    at beginWork$1 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19765:15)
+[ 1429785ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429785ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429785ms] TypeError: Cannot read properties of null (reading 'useMemo')
+    at Object.useMemo (http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:1094:29)
+    at R (http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:24:32)
+    at http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:53:11
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:11548:26)
+    at updateForwardRef (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:14325:28)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:15946:22)
+    at HTMLUnknownElement.callCallback2 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3674:22)
+    at Object.invokeGuardedCallbackDev (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3699:24)
+    at invokeGuardedCallback (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3733:39)
+    at beginWork$1 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19765:15)
+[ 1429785ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429785ms] [ERROR] Warning: Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem. @ http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:135
+[ 1429785ms] TypeError: Cannot read properties of null (reading 'useMemo')
+    at Object.useMemo (http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:1094:29)
+    at R (http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:24:32)
+    at http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:53:11
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:11548:26)
+    at updateForwardRef (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:14325:28)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:15946:22)
+    at HTMLUnknownElement.callCallback2 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3674:22)
+    at Object.invokeGuardedCallbackDev (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3699:24)
+    at invokeGuardedCallback (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:3733:39)
+    at beginWork$1 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19765:15)
+[ 1429786ms] [ERROR] The above error occurred in the <ForwardRef> component:
+
+    at http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:52:51
+    at h1
+    at div
+    at div
+    at MotionDOMComponent (http://localhost:3000/node_modules/.vite/deps/motion_react.js?v=bed15c1f:9420:40)
+    at div
+    at MotionDOMComponent (http://localhost:3000/node_modules/.vite/deps/motion_react.js?v=bed15c1f:9420:40)
+    at section
+    at Hero02 (http://localhost:3000/src/components/ui/hero-02.tsx:25:26)
+    at ReportsDashboard (http://localhost:3000/src/components/ReportsDashboard.jsx?t=1788963629904:26:33)
+    at Suspense
+    at main
+    at div
+    at div
+    at ProtectedShell (http://localhost:3000/src/App.jsx?t=1788981452504:147:3)
+    at RenderedRoute (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:4088:5)
+    at Routes (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:4558:5)
+    at AppRoutes (http://localhost:3000/src/App.jsx?t=1788981452504:400:24)
+    at Router (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:4501:15)
+    at HashRouter (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:5283:5)
+    at App (http://localhost:3000/src/App.jsx?t=1788981452504:506:51)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries. @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:14031
+[ 1429786ms] [ERROR] The above error occurred in the <ForwardRef> component:
+
+    at http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:52:51
+    at h1
+    at div
+    at div
+    at MotionDOMComponent (http://localhost:3000/node_modules/.vite/deps/motion_react.js?v=bed15c1f:9420:40)
+    at div
+    at MotionDOMComponent (http://localhost:3000/node_modules/.vite/deps/motion_react.js?v=bed15c1f:9420:40)
+    at section
+    at Hero02 (http://localhost:3000/src/components/ui/hero-02.tsx:25:26)
+    at ReportsDashboard (http://localhost:3000/src/components/ReportsDashboard.jsx?t=1788963629904:26:33)
+    at Suspense
+    at main
+    at div
+    at div
+    at ProtectedShell (http://localhost:3000/src/App.jsx?t=1788981452504:147:3)
+    at RenderedRoute (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:4088:5)
+    at Routes (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:4558:5)
+    at AppRoutes (http://localhost:3000/src/App.jsx?t=1788981452504:400:24)
+    at Router (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:4501:15)
+    at HashRouter (http://localhost:3000/node_modules/.vite/deps/react-router-dom.js?v=bed15c1f:5283:5)
+    at App (http://localhost:3000/src/App.jsx?t=1788981452504:506:51)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries. @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:14031
+[ 1429786ms] TypeError: Cannot read properties of null (reading 'useMemo')
+    at Object.useMemo (http://localhost:3000/node_modules/.vite/deps/chunk-QI6TWUTQ.js?v=bb3510f0:1094:29)
+    at R (http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:24:32)
+    at http://localhost:3000/node_modules/.vite/deps/react-wrap-balancer.js?v=1e345f7f:53:11
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:11548:26)
+    at updateForwardRef (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:14325:28)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:15946:22)
+    at beginWork$1 (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19753:22)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19198:20)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19137:13)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bed15c1f:19116:15)
+[ 1430007ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bb3510f0:21550
+[ 1430587ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://localhost:3000/src/services/liveSync.js:95
+[ 1461129ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bb3510f0:21550
+[ 1461668ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://localhost:3000/src/services/liveSync.js:95
+[ 1467939ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bb3510f0:21550
+[ 1468497ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://localhost:3000/src/services/liveSync.js:95
+[ 1510109ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bb3510f0:21550
+[ 1510686ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://localhost:3000/src/services/liveSync.js:95
+[ 1539534ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bb3510f0:21550
+[ 1540071ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://localhost:3000/src/services/liveSync.js:95
+[ 1584061ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/chunk-2MWANQQC.js?v=bb3510f0:21550
+[ 1584600ms] [LOG] 📡 Suscrito exitosamente a Supabase Realtime Channel @ http://localhost:3000/src/services/liveSync.js:95

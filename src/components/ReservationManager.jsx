@@ -392,7 +392,7 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
                           onClick={() => handleSeatClientAction(res)}
                           className="py-1.5 px-2 rounded-xl text-[11px] font-extrabold bg-[#5d402b] text-[#fffdf9] hover:bg-[#483120] border border-[#3e2718] text-center shadow-sm"
                         >
-                          🪑 Sentar Cliente
+                          Sentar cliente
                         </button>
                       </div>
                     )}

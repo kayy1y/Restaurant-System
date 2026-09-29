@@ -34,6 +34,30 @@ export function mapSupabaseToMenuProduct(row) {
   };
 }
 
+function mapSupabaseToProductModifier(row) {
+  return {
+    id: row.id,
+    product_id: row.producto_id,
+    name: row.nombre_opcion,
+    extra_price: parseFloat(row.precio_extra) || 0
+  };
+}
+
+function normalizeModifierName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function modifierCode(name, index) {
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 40);
+  return normalized || `OPCION_${index + 1}`;
+}
+
 export function mapMenuProductToSupabasePayload(productData) {
   const prodId = productData.id || `prod-${Date.now().toString().slice(-6)}`;
   const catId = getValidCategory(productData.category_id);
@@ -80,15 +104,17 @@ export async function getMenuCategories() {
  */
 export async function getMenuProducts(includeHidden = false) {
   try {
-    const { data: rows, error } = await supabase
-      .from('productos')
-      .select('*')
-      .order('nombre', { ascending: true });
+    if (supabase) {
+      const { data: rows, error } = await supabase
+        .from('productos')
+        .select('*')
+        .order('nombre', { ascending: true });
 
-    if (!error && Array.isArray(rows) && rows.length > 0) {
-      const mapped = rows.map(mapSupabaseToMenuProduct);
-      if (includeHidden) return mapped;
-      return mapped.filter(p => p.status !== 'oculto' && p.status !== 'INACTIVO');
+      if (!error && Array.isArray(rows) && rows.length > 0) {
+        const mapped = rows.map(mapSupabaseToMenuProduct);
+        if (includeHidden) return mapped;
+        return mapped.filter(p => p.status !== 'oculto' && p.status !== 'INACTIVO');
+      }
     }
   } catch (err) {
     console.warn('Advertencia consultando productos en Supabase:', err);
@@ -105,6 +131,106 @@ export async function getMenuProducts(includeHidden = false) {
 
   if (includeHidden) return LAVID_PRODUCTS;
   return LAVID_PRODUCTS.filter(p => p.status !== 'oculto' && p.status !== 'INACTIVO');
+}
+
+/**
+ * Obtener únicamente los acompañamientos configurados para un producto.
+ * Los modificadores antiguos sin product_id se ignoran deliberadamente:
+ * no deben comportarse como opciones globales.
+ */
+export async function getProductModifiers(productId) {
+  if (!productId) return [];
+
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('modificadores_producto')
+        .select('id, producto_id, nombre_opcion, precio_extra')
+        .eq('producto_id', productId)
+        .order('nombre_opcion', { ascending: true });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data.map(mapSupabaseToProductModifier);
+      }
+    }
+  } catch (err) {
+    console.warn('Advertencia consultando acompañamientos en Supabase:', err);
+  }
+
+  try {
+    const modifiers = await dbGetAll('product_modifiers');
+    return modifiers
+      .filter(modifier => (modifier.product_id || modifier.productId) === productId)
+      .map(modifier => ({
+        id: modifier.id,
+        product_id: productId,
+        name: modifier.name || modifier.nombre_opcion,
+        extra_price: Number(modifier.extra_price ?? modifier.precio_extra ?? 0)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * Reemplazar la lista de acompañamientos de un producto sin afectar a otros.
+ */
+export async function saveProductModifiers(productId, options = []) {
+  if (!productId) throw new Error('El producto es obligatorio para guardar acompañamientos.');
+
+  const uniqueNames = [...new Set(options
+    .map(option => normalizeModifierName(typeof option === 'string' ? option : option?.name))
+    .filter(Boolean))];
+
+  const now = Date.now().toString(36);
+  const modifiers = uniqueNames.map((name, index) => ({
+    id: `mod-${now}-${index}`,
+    product_id: productId,
+    name,
+    extra_price: Number(typeof options[index] === 'object' ? options[index]?.extra_price : 0) || 0
+  }));
+
+  try {
+    const stored = await dbGetAll('product_modifiers');
+    const previous = stored.filter(modifier =>
+      (modifier.product_id || modifier.productId) === productId
+    );
+    for (const modifier of previous) await dbDelete('product_modifiers', modifier.id);
+    for (const modifier of modifiers) await dbPut('product_modifiers', modifier);
+  } catch (err) {
+    console.warn('No se pudieron guardar acompañamientos localmente:', err);
+  }
+
+  try {
+    if (supabase) {
+      const { error: deleteError } = await supabase
+        .from('modificadores_producto')
+        .delete()
+        .eq('producto_id', productId);
+
+      if (deleteError) throw deleteError;
+
+      if (modifiers.length > 0) {
+        const payload = modifiers.map((modifier, index) => ({
+          id: modifier.id,
+          producto_id: productId,
+          categoria_id: null,
+          codigo_opcion: modifierCode(modifier.name, index),
+          nombre_opcion: modifier.name,
+          precio_extra: modifier.extra_price
+        }));
+        const { error: insertError } = await supabase
+          .from('modificadores_producto')
+          .insert(payload);
+        if (insertError) throw insertError;
+      }
+    }
+  } catch (err) {
+    console.warn('Acompañamientos guardados localmente; sincronización Supabase pendiente:', err.message || err);
+  }
+
+  return modifiers;
 }
 
 /**
@@ -175,8 +301,10 @@ export async function createAdminMenuProduct(productData, userRole = 'ADMINISTRA
 
   // 1. Guardar/Actualizar en Supabase public.productos
   try {
-    const sbPayload = mapMenuProductToSupabasePayload(newProduct);
-    await supabase.from('productos').upsert([sbPayload], { onConflict: 'id' });
+    if (supabase) {
+      const sbPayload = mapMenuProductToSupabasePayload(newProduct);
+      await supabase.from('productos').upsert([sbPayload], { onConflict: 'id' });
+    }
   } catch (sbErr) {
     console.warn('Sincronización Supabase productos en fallback:', sbErr.message);
   }
@@ -194,6 +322,10 @@ export async function createAdminMenuProduct(productData, userRole = 'ADMINISTRA
         details: `Producto ${newProduct.name} (Categoría: ${newProduct.category_id}, Precio: ₡${newProduct.base_price}) guardado.`
       });
     } catch (e) {}
+  }
+
+  if (Array.isArray(productData.accompaniments)) {
+    await saveProductModifiers(prodId, productData.accompaniments);
   }
 
   return newProduct;
@@ -222,12 +354,23 @@ export async function setProductStatus(productId, newStatus, userRole, adminName
   prod.available = newStatus === 'disponible';
   prod.updated_at = new Date().toISOString();
 
+  const normalizedStatus = mapMenuProductToSupabasePayload({
+    ...prod,
+    id: productId,
+    status: newStatus
+  });
+
   // Actualizar en Supabase
   try {
-    await supabase
-      .from('productos')
-      .update({ estado: newStatus })
-      .eq('id', productId.slice(0, 29));
+    if (supabase) {
+      await supabase
+        .from('productos')
+        .update({
+          estado: normalizedStatus.estado,
+          disponible: normalizedStatus.disponible
+        })
+        .eq('id', productId);
+    }
   } catch (err) {}
 
   if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
@@ -242,10 +385,12 @@ export async function setProductStatus(productId, newStatus, userRole, adminName
  */
 export async function deleteMenuProduct(productId, userRole, adminName = 'Administrador') {
   try {
-    await supabase
-      .from('productos')
-      .delete()
-      .eq('id', productId.slice(0, 29));
+    if (supabase) {
+      await supabase
+        .from('productos')
+        .delete()
+        .eq('id', productId);
+    }
   } catch (err) {}
 
   if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {

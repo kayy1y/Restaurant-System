@@ -46,25 +46,10 @@ export default function OrderModal({
     }).catch(() => {});
   }, []);
 
-  // Abrir selector de modificadores o añadir producto directo
+  // Un toque agrega el producto directamente al pedido.
   const handleProductClick = (product) => {
     if (product.status === 'agotado') return;
-
-    // Verificar si el producto requiere o permite modificadores específicos
-    const hasSpecificMods = 
-      product.id === 'prod-ensalada-la-huerta' ||
-      product.id === 'prod-camarones-jumbo' ||
-      product.category_id === 'cat-pastas' ||
-      product.category_id === 'cat-pizzas' ||
-      product.category_id === 'cat-carnes-res';
-
-    if (hasSpecificMods) {
-      setConfiguringProduct(product);
-      setSelectedModifiers([]);
-      setItemNote('');
-    } else {
-      addConfiguredItemToCart(product, [], '');
-    }
+    addConfiguredItemToCart(product, [], '');
   };
 
   const addConfiguredItemToCart = (product, mods = [], note = '') => {
@@ -106,6 +91,7 @@ export default function OrderModal({
   };
 
   const handleRemoveItem = (index) => {
+    if (!window.confirm('¿Estás seguro de que querés quitar este producto?')) return;
     const updated = currentItems.filter((_, i) => i !== index);
     setCurrentItems(updated);
   };
@@ -154,7 +140,7 @@ export default function OrderModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#231710] w-full max-w-5xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+      <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#231710] w-full max-w-7xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh]">
         {/* Modal Header */}
         <div className="bg-[#2c1d13] text-[#f7f2e9] border-b border-[#422c1d] p-4 flex items-center justify-between">
           <div>
@@ -177,7 +163,7 @@ export default function OrderModal({
         <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-hidden">
           
           {/* Left Column: Menu Selector */}
-          <div className="md:col-span-7 p-4 border-b md:border-b-0 md:border-r border-[#dac8b3] overflow-y-auto space-y-4">
+          <div className="md:col-span-8 p-5 border-b md:border-b-0 md:border-r border-[#dac8b3] overflow-y-auto space-y-5">
             
             {/* Search Input Bar */}
             <div className="relative">
@@ -219,7 +205,7 @@ export default function OrderModal({
             </div>
 
             {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredProducts.map(prod => {
                 const isAgotado = prod.status === 'agotado';
 
@@ -227,16 +213,15 @@ export default function OrderModal({
                   <div
                     key={prod.id}
                     onClick={() => handleProductClick(prod)}
-                    className={`glass-card p-3 rounded-2xl border cursor-pointer flex flex-col justify-between transition-all bg-[#fffdf9] ${
+                    className={`glass-card p-4 min-h-[150px] rounded-2xl border cursor-pointer flex flex-col justify-between transition-all bg-[#fffdf9] ${
                       isAgotado ? 'opacity-50 border-stone-400 cursor-not-allowed' : 'border-[#dac8b3] hover:border-[#5d402b] shadow-sm'
                     }`}
                   >
                     <div>
                       <div className="flex items-start justify-between gap-1 mb-1">
-                        <h4 className="font-heading font-extrabold text-xs text-[#1f1209] flex items-center gap-1">
+                        <h4 className="font-heading font-extrabold text-sm text-[#1f1209] flex items-center gap-1">
                           {prod.name}
-                          {prod.spicy_level === 1 && <span title="Ligeramente Picante">🌶️</span>}
-                          {prod.spicy_level >= 2 && <span title="Muy Picante">🌶️🌶️</span>}
+                          {prod.spicy_level > 0 && <Flame className="w-4 h-4 text-orange-600" aria-label="Picante" />}
                         </h4>
                         {prod.grammage && (
                           <span className="bg-[#5d402b]/10 text-[#5d402b] text-[9px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0">
@@ -248,7 +233,7 @@ export default function OrderModal({
                     </div>
 
                     <div className="mt-3 pt-2 border-t border-[#dac8b3] flex items-center justify-between text-xs">
-                      <span className="font-extrabold text-[#5d402b] font-mono text-sm">
+                      <span className="font-extrabold text-[#5d402b] font-mono text-base">
                         ₡{(prod.base_price || prod.price || 0).toLocaleString()}
                       </span>
 
@@ -269,7 +254,7 @@ export default function OrderModal({
           </div>
 
           {/* Right Column: Order Items Summary & Kitchen Send */}
-          <div className="md:col-span-5 p-4 bg-[#f5efe6] flex flex-col justify-between overflow-y-auto border-t md:border-t-0 border-[#dac8b3]">
+          <div className="md:col-span-4 p-5 bg-[#f5efe6] flex flex-col justify-between overflow-y-auto border-t md:border-t-0 border-[#dac8b3]">
             <div className="space-y-4">
               <h3 className="font-heading font-extrabold text-sm text-[#1f1209] flex items-center justify-between">
                 <span>Comanda del Pedido</span>

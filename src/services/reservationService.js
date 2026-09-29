@@ -8,6 +8,8 @@ import { dbGetAll, dbGet, dbPut, dbDelete } from './db.js';
 import { liveSync } from './liveSync.js';
 import { supabase } from '../lib/supabase.js';
 
+const SUPABASE_POSTGRES_CHANGES_ENABLED = import.meta.env.VITE_ENABLE_SUPABASE_POSTGRES_CHANGES === 'true';
+
 export const RESERVATION_STATUSES = [
   { id: 'confirmada', label: 'Confirmada', color: 'bg-emerald-950/40 text-emerald-300 border-emerald-500/50' },
   { id: 'pendiente', label: 'Pendiente', color: 'bg-amber-950/40 text-amber-300 border-amber-500/50' },
@@ -478,7 +480,7 @@ export async function updateReservationStatus(reservationId, newStatus) {
  * Suscribirse a cambios en tiempo real (Supabase Realtime) en la tabla public.reservas
  */
 export function subscribeToReservations(onPayload) {
-  if (!supabase) return () => {};
+  if (!supabase || !SUPABASE_POSTGRES_CHANGES_ENABLED) return () => {};
 
   const channel = supabase
     .channel('public:reservas-changes')
@@ -567,5 +569,4 @@ export async function apiGetReservationById(reservationId) {
 export async function apiCancelReservationWeb(reservationId) {
   return await cancelReservation(reservationId, 'Cliente Web');
 }
-
 

@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 export async function testSupabaseConnection() {
   const result = {
     isConfigured: isSupabaseConfigured,
-    url: import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || localStorage.getItem('GASTRO_SUPABASE_URL') || 'No configurada',
+    url: import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || 'No configurada',
     dbPingSuccess: false,
     dbPingMessage: '',
     tablesExist: false,
@@ -109,6 +109,7 @@ create table if not exists public.productos (
 
 create table if not exists public.modificadores_producto (
   id varchar(50) primary key,
+  producto_id varchar(50) references public.productos(id) on delete cascade,
   categoria_id varchar(50) references public.categorias(id) on delete cascade,
   codigo_opcion varchar(50) not null,
   nombre_opcion text not null,
@@ -207,6 +208,7 @@ insert into public.perfiles (id, nombre, pin, rol)
 values
   ('11111111-1111-1111-1111-111111111111', 'Laura', '1234', 'salonero'),
   ('22222222-2222-2222-2222-222222222222', 'Carlos', '1111', 'salonero'),
+  ('66666666-6666-6666-6666-666666666666', 'Andrea', '5555', 'salonero'),
   ('33333333-3333-3333-3333-333333333333', 'Chef Mario', '2222', 'cocina'),
   ('44444444-4444-4444-4444-444444444444', 'Ana Cajera', '3333', 'cajero'),
   ('55555555-5555-5555-5555-555555555555', 'Admin General', '9999', 'administrador')

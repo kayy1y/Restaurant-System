@@ -1,7 +1,6 @@
 /**
  * Servicio de Gestión de Temas, Apariencia e Identidad del Restaurante
- * Paleta Exclusiva Steakhouse: Beige + Madera + Café + Crema + Blanco Cálido
- * La Vid Steak House & Pizza - La Fortuna, Costa Rica
+ * Temas operativos para una interfaz de restaurante empresarial.
  */
 
 import { dbGet, dbPut } from './db.js';
@@ -21,101 +20,61 @@ export const DEFAULT_RESTAURANT_IDENTITY = {
 
 export const THEME_PRESETS = [
   {
-    id: 'lavid-clasico',
-    name: 'La Vid Clásico',
-    desc: 'Paleta artesanal de madera noble, crema, beige cálido y café profundo',
+    id: 'la-vid-elegante', name: 'La Vid Elegante', desc: 'Marfil, madera y texto de alto contraste', mode: 'light',
+    primary_color: '#66513f', secondary_color: '#eae4da', bg_main: '#f4f1eb', surface_bg: '#faf8f4', card_bg: '#fffdf9',
+    sidebar_bg: '#29251f', sidebar_text: '#f4eee5', text_main: '#302b25', text_muted: '#6c6257', border_color: '#ded7cc', accent_badge: 'Recomendado'
+  },
+  {
+    id: 'operativo-azul',
+    name: 'Operativo Azul',
+    desc: 'Tema corporativo de alto contraste para operación diaria',
     mode: 'light',
-    primary_color: '#5d402b',
-    secondary_color: '#d8c4a7',
-    bg_main: '#f5efe6',
-    surface_bg: '#faf6ee',
-    card_bg: '#fffdf9',
-    sidebar_bg: '#2c1d13',
-    sidebar_text: '#f7f2e9',
-    text_main: '#231710',
-    text_muted: '#6e5a4b',
-    border_color: '#dac8b3',
+    primary_color: '#2563eb', secondary_color: '#dbeafe', bg_main: '#f1f5f9',
+    surface_bg: '#f8fafc', card_bg: '#ffffff', sidebar_bg: '#0f172a',
+    sidebar_text: '#e2e8f0', text_main: '#0f172a', text_muted: '#475569', border_color: '#dbe3ee',
     accent_badge: 'Recomendado'
   },
   {
-    id: 'lavid-bosque',
-    name: 'La Vid Bosque',
-    desc: 'Inspirado en la vegetación natural de La Fortuna con verde oliva apagado',
+    id: 'operativo-esmeralda', name: 'Operativo Esmeralda', desc: 'Alternativa sobria para operación y disponibilidad',
     mode: 'light',
-    primary_color: '#46593a',
-    secondary_color: '#d4c2a4',
-    bg_main: '#f3f4ee',
-    surface_bg: '#fafaf6',
+    primary_color: '#047857', secondary_color: '#d1fae5', bg_main: '#f0fdf4', surface_bg: '#f8fafc',
     card_bg: '#ffffff',
-    sidebar_bg: '#1c2817',
-    sidebar_text: '#f2f6ee',
-    text_main: '#1a2416',
-    text_muted: '#5a6953',
-    border_color: '#ccd6c4'
+    sidebar_bg: '#064e3b', sidebar_text: '#ecfdf5', text_main: '#102a22', text_muted: '#466158', border_color: '#d1e7dd'
   },
   {
-    id: 'steakhouse-nocturno',
-    name: 'Steakhouse Nocturno',
-    desc: 'Diseñado para turnos nocturnos con madera oscura y luces cálidas de tenue resplandor',
+    id: 'operativo-nocturno', name: 'Operativo Nocturno', desc: 'Tema oscuro pensado para turnos de baja luz',
     mode: 'dark',
-    primary_color: '#8c6544',
-    secondary_color: '#4a3321',
-    bg_main: '#160e09',
-    surface_bg: '#21160e',
-    card_bg: '#291b12',
-    sidebar_bg: '#0d0805',
-    sidebar_text: '#f9f3ea',
-    text_main: '#fbf7f0',
-    text_muted: '#c4b1a1',
-    border_color: '#422c1d'
+    primary_color: '#60a5fa', secondary_color: '#1e3a5f', bg_main: '#0f172a', surface_bg: '#172033',
+    card_bg: '#1e293b', sidebar_bg: '#020617', sidebar_text: '#e2e8f0', text_main: '#f8fafc', text_muted: '#94a3b8', border_color: '#334155'
   },
   {
-    id: 'madera-clara',
-    name: 'Madera Clara',
-    desc: 'Estilo rústico artesanal suave con tonos beige y tostados artesanales',
+    id: 'operativo-violeta', name: 'Operativo Violeta', desc: 'Tema de gestión con acentos claros y profesionales',
     mode: 'light',
-    primary_color: '#735036',
-    secondary_color: '#e2d2bb',
-    bg_main: '#f7f2ea',
-    surface_bg: '#fdfbf7',
+    primary_color: '#6d28d9', secondary_color: '#ede9fe', bg_main: '#f5f3ff', surface_bg: '#fafaff',
     card_bg: '#ffffff',
-    sidebar_bg: '#3d281b',
-    sidebar_text: '#f7f2ea',
-    text_main: '#2b1c13',
-    text_muted: '#735e50',
-    border_color: '#dfcfbb'
+    sidebar_bg: '#2e1065', sidebar_text: '#f5f3ff', text_main: '#1e1b4b', text_muted: '#5b5a85', border_color: '#ddd6fe'
   },
   {
-    id: 'minimalista',
-    name: 'Minimalista',
-    desc: 'Interfaz blanca impecable con detalles sutiles en café profundo',
+    id: 'minimalista', name: 'Minimalista', desc: 'Interfaz blanca con jerarquía visual corporativa',
     mode: 'light',
-    primary_color: '#3d281c',
-    secondary_color: '#e5ded4',
-    bg_main: '#faf8f5',
+    primary_color: '#334155', secondary_color: '#e2e8f0', bg_main: '#f8fafc',
     surface_bg: '#ffffff',
     card_bg: '#ffffff',
-    sidebar_bg: '#1a120b',
-    sidebar_text: '#f7f4ef',
-    text_main: '#1f160f',
-    text_muted: '#63554a',
-    border_color: '#e2d9cd'
+    sidebar_bg: '#111827', sidebar_text: '#f8fafc', text_main: '#111827', text_muted: '#64748b', border_color: '#e2e8f0'
   }
 ];
 
 export const PRIMARY_COLOR_PRESETS = [
-  { id: 'cafe-madera', name: 'Café Madera', hex: '#5d402b' },
-  { id: 'cafe-oscuro', name: 'Café Oscuro', hex: '#3e2718' },
-  { id: 'verde-oliva-apagado', name: 'Verde Oliva Apagado', hex: '#46593a' },
-  { id: 'marron-cuero', name: 'Marrón Cuero', hex: '#735036' },
-  { id: 'beige-tostado', name: 'Beige Tostado', hex: '#b8860b' },
-  { id: 'cafe-profundo', name: 'Café Profundo', hex: '#2c1d13' }
+  { id: 'azul-profesional', name: 'Azul profesional', hex: '#2563eb' },
+  { id: 'esmeralda', name: 'Esmeralda', hex: '#047857' },
+  { id: 'violeta', name: 'Violeta', hex: '#6d28d9' },
+  { id: 'grafito', name: 'Grafito', hex: '#334155' }
 ];
 
 export const DEFAULT_USER_PREFERENCES = {
   theme_mode: 'light', // light, dark, auto
-  selected_theme: 'lavid-clasico',
-  primary_color: '#5d402b',
+  selected_theme: 'la-vid-elegante',
+  primary_color: '#66513f',
   sidebar_style: 'expanded', // expanded, compact
   font_size: 'normal', // small, normal, large
   density_mode: 'normal', // comfortable, normal, compact
@@ -126,7 +85,7 @@ export const DEFAULT_USER_PREFERENCES = {
  * Calcular contraste óptimo YIQ para garantizar legibilidad absoluta del texto
  */
 export function getContrastYIQ(hexcolor) {
-  let hex = (hexcolor || '#5d402b').replace('#', '');
+  let hex = (hexcolor || '#2563eb').replace('#', '');
   if (hex.length === 3) {
     hex = hex.split('').map(c => c + c).join('');
   }
@@ -134,7 +93,7 @@ export function getContrastYIQ(hexcolor) {
   const g = parseInt(hex.substring(2, 4), 16) || 64;
   const b = parseInt(hex.substring(4, 6), 16) || 43;
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 135 ? '#231710' : '#fffdf9';
+  return yiq >= 135 ? '#0f172a' : '#ffffff';
 }
 
 /**
@@ -237,9 +196,12 @@ export function applyThemeToDOM(prefs) {
     effectiveMode = prefersDark ? 'dark' : 'light';
   }
 
-  const preset = THEME_PRESETS.find(p => p.id === prefs.selected_theme) || THEME_PRESETS[0];
+  const preset = THEME_PRESETS.find(p => p.id === (prefs.selected_theme === 'operativo-azul' ? 'la-vid-elegante' : prefs.selected_theme)) || THEME_PRESETS[0];
 
-  const primaryColor = prefs.primary_color || preset.primary_color;
+  const legacyBrownColors = ['#2563eb','#5d402b', '#3e2718', '#735036', '#8c6544', '#3d281c', '#2c1d13', '#b8860b'];
+  const primaryColor = legacyBrownColors.includes(String(prefs.primary_color || '').toLowerCase())
+    ? preset.primary_color
+    : (prefs.primary_color || preset.primary_color);
   const primaryText = getContrastYIQ(primaryColor);
 
   root.setAttribute('data-theme-mode', effectiveMode);
@@ -250,14 +212,10 @@ export function applyThemeToDOM(prefs) {
   root.setAttribute('data-card-style', prefs.card_style || 'clasico');
 
   if (effectiveMode === 'dark') {
-    root.style.setProperty('--bg-main', preset.id === 'lavid-clasico' ? '#160e09' : preset.bg_main);
-    root.style.setProperty('--bg-surface', '#21160e');
-    root.style.setProperty('--bg-card', '#291b12');
-    root.style.setProperty('--bg-sidebar', '#0d0805');
-    root.style.setProperty('--sidebar-text', '#f9f3ea');
-    root.style.setProperty('--text-main', '#fbf7f0');
-    root.style.setProperty('--text-muted', '#c4b1a1');
-    root.style.setProperty('--border-color', '#422c1d');
+    root.style.setProperty('--bg-main', '#0f172a'); root.style.setProperty('--bg-surface', '#172033');
+    root.style.setProperty('--bg-card', '#1e293b'); root.style.setProperty('--bg-sidebar', '#020617');
+    root.style.setProperty('--sidebar-text', '#e2e8f0'); root.style.setProperty('--text-main', '#f8fafc');
+    root.style.setProperty('--text-muted', '#94a3b8'); root.style.setProperty('--border-color', '#334155');
   } else {
     root.style.setProperty('--bg-main', preset.bg_main);
     root.style.setProperty('--bg-surface', preset.surface_bg);

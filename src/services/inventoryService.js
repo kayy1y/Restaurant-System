@@ -99,27 +99,7 @@ export async function findInventoryItemByNameOrCode(query) {
   } catch (err) {}
 
   // 2. Consultar en Supabase productos
-  try {
-    const { data: prodMatch } = await supabase
-      .from('productos')
-      .select('*')
-      .or(`sku_code.eq.${query.trim()},nombre.ilike.${query.trim()}`)
-      .maybeSingle();
-
-    if (prodMatch) {
-      return {
-        id: prodMatch.id,
-        sku_code: prodMatch.sku_code,
-        name: prodMatch.nombre,
-        current_stock: 0,
-        min_stock: 5,
-        unit_id: 'unid',
-        unit_cost: parseFloat(prodMatch.precio_base || 0)
-      };
-    }
-  } catch (err) {}
-
-  // 3. Consultar almacenamiento local / IndexedDB
+  // 2. Consultar almacenamiento local / IndexedDB
   try {
     const allItems = await getAllFromStore('inventory_items');
     if (Array.isArray(allItems)) {
@@ -169,31 +149,20 @@ export async function saveInventoryItem(itemData, options = {}) {
         updated_at: new Date().toISOString()
       };
 
-      // Guardar / actualizar en Supabase insumos_inventario y productos
+      // Guardar / actualizar en Supabase insumos_inventario
       try {
-        await supabase.from('insumos_inventario').upsert([{
-          id: updatedItem.id.slice(0, 50),
-          sku_code: (updatedItem.sku_code || `SKU-${updatedItem.id}`).slice(0, 30),
-          nombre: updatedItem.name,
-          stock_actual: newStock,
-          stock_minimo: updatedItem.min_stock || 5,
-          unidad_medida: updatedItem.unit_id || 'kg',
-          costo_unitario: updatedItem.unit_cost || 0,
-          actualizado_en: new Date().toISOString()
-        }], { onConflict: 'id' });
-      } catch (err) {}
-
-      try {
-        await supabase.from('productos').upsert([{
-          id: updatedItem.id.slice(0, 50),
-          sku_code: (updatedItem.sku_code || `SKU-${updatedItem.id}`).slice(0, 30),
-          categoria_id: (updatedItem.category_id || 'cat-carnes-res').slice(0, 50),
-          nombre: updatedItem.name,
-          descripcion: updatedItem.notes || `Stock acumulado: ${newStock} ${updatedItem.unit_id}`,
-          precio_base: updatedItem.unit_cost || 0,
-          estado: 'ACTIVO',
-          disponible: true
-        }], { onConflict: 'id' });
+        if (supabase) {
+          await supabase.from('insumos_inventario').upsert([{
+            id: updatedItem.id.slice(0, 50),
+            sku_code: (updatedItem.sku_code || `SKU-${updatedItem.id}`).slice(0, 30),
+            nombre: updatedItem.name,
+            stock_actual: newStock,
+            stock_minimo: updatedItem.min_stock || 5,
+            unidad_medida: updatedItem.unit_id || 'kg',
+            costo_unitario: updatedItem.unit_cost || 0,
+            actualizado_en: new Date().toISOString()
+          }], { onConflict: 'id' });
+        }
       } catch (err) {}
 
       // Registrar movimiento de Entrada por acumulación
@@ -241,33 +210,21 @@ export async function saveInventoryItem(itemData, options = {}) {
 
   // Guardar en Supabase public.insumos_inventario
   try {
-    await supabase.from('insumos_inventario').upsert([{
-      id: itemToSave.id.slice(0, 50),
-      sku_code: (itemToSave.sku_code || `SKU-${itemToSave.id}`).slice(0, 30),
-      nombre: itemToSave.name,
-      stock_actual: itemToSave.current_stock,
-      stock_minimo: itemToSave.min_stock,
-      unidad_medida: itemToSave.unit_id,
-      costo_unitario: itemToSave.unit_cost,
-      actualizado_en: now
-    }], { onConflict: 'id' });
+    if (supabase) {
+      await supabase.from('insumos_inventario').upsert([{
+        id: itemToSave.id.slice(0, 50),
+        sku_code: (itemToSave.sku_code || `SKU-${itemToSave.id}`).slice(0, 30),
+        nombre: itemToSave.name,
+        stock_actual: itemToSave.current_stock,
+        stock_minimo: itemToSave.min_stock,
+        unidad_medida: itemToSave.unit_id,
+        costo_unitario: itemToSave.unit_cost,
+        actualizado_en: now
+      }], { onConflict: 'id' });
+    }
   } catch (sbErr) {
     console.warn('Sincronización Supabase de insumo en fallback:', sbErr.message);
   }
-
-  // Guardar en Supabase public.productos
-  try {
-    await supabase.from('productos').upsert([{
-      id: itemToSave.id.slice(0, 50),
-      sku_code: (itemToSave.sku_code || `SKU-${itemToSave.id}`).slice(0, 30),
-      categoria_id: (itemToSave.category_id || 'cat-carnes-res').slice(0, 50),
-      nombre: itemToSave.name,
-      descripcion: itemToSave.notes || `Nuevo insumo registrado con ${itemToSave.current_stock} ${itemToSave.unit_id}`,
-      precio_base: itemToSave.unit_cost || 0,
-      estado: 'ACTIVO',
-      disponible: true
-    }], { onConflict: 'id' });
-  } catch (err) {}
 
   await saveToStore('inventory_items', itemToSave);
   return { ...itemToSave, isAccumulated: false };

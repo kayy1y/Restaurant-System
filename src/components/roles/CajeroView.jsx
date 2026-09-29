@@ -7,6 +7,7 @@ import { dbGetAll, dbGet } from '../../services/db.js';
 import { removeItemFromOrder, setOrderCheckoutLock } from '../../services/orderService.js';
 import { processOrderPayment } from '../../services/paymentService.js';
 import { getFiscalQueue } from '../../services/fiscalService.js';
+import { formatColones } from '../../utils/money.js';
 
 export default function CajeroView() {
   const [orders, setOrders] = React.useState([]);
@@ -27,8 +28,6 @@ export default function CajeroView() {
 
   // Modal para Quitar Producto
   const [removingItemIndex, setRemovingItemIndex] = React.useState(null);
-  const [writtenReason, setWrittenReason] = React.useState('');
-  const [managerPin, setManagerPin] = React.useState('');
   const [removeError, setRemoveError] = React.useState('');
   const [recalcSummary, setRecalcSummary] = React.useState(null);
 
@@ -73,11 +72,6 @@ export default function CajeroView() {
     e.preventDefault();
     setRemoveError('');
 
-    if (!writtenReason || writtenReason.trim().length < 8) {
-      setRemoveError('Debe escribir la explicación del motivo (mínimo 8 caracteres).');
-      return;
-    }
-
     if (!selectedOrder) return;
     const itemTarget = selectedOrder.items[removingItemIndex];
     if (!itemTarget) return;
@@ -89,16 +83,13 @@ export default function CajeroView() {
       const updatedOrd = await removeItemFromOrder({
         orderId: selectedOrder.id,
         itemIndex: removingItemIndex,
-        writtenReason: writtenReason,
+        writtenReason: 'Retiro confirmado por el usuario',
         userName: 'Ana Cajera',
-        managerPin: managerPin
       });
 
       setIsProcessing(false);
       setSelectedOrder(updatedOrd);
       setRemovingItemIndex(null);
-      setWrittenReason('');
-      setManagerPin('');
       setAmountPaidInput(updatedOrd.total.toString());
 
       setRecalcSummary({
@@ -311,8 +302,6 @@ export default function CajeroView() {
                               type="button"
                               onClick={() => {
                                 setRemovingItemIndex(idx);
-                                setWrittenReason('');
-                                setManagerPin('');
                                 setRemoveError('');
                               }}
                               className="bg-rose-100 hover:bg-rose-200 text-[#802319] border border-rose-300 font-extrabold px-2.5 py-1 rounded-xl text-[11px] flex items-center gap-1 transition-all shadow-sm"
@@ -340,11 +329,11 @@ export default function CajeroView() {
                   </div>
                   <div className="flex justify-between text-[#3d2717] font-semibold">
                     <span>Servicio Mesa (10%):</span>
-                    <span>₡{selectedOrder.tax_service.toLocaleString()}</span>
+                    <span>{formatColones(selectedOrder.tax_service)}</span>
                   </div>
                   <div className="flex justify-between text-[#5d402b] text-base font-extrabold pt-1.5 border-t border-[#dac8b3]">
                     <span>TOTAL A COBRAR:</span>
-                    <span className="text-lg">₡{selectedOrder.total.toLocaleString()}</span>
+                    <span className="text-lg">{formatColones(selectedOrder.total)}</span>
                   </div>
                 </div>
               </div>
@@ -361,13 +350,17 @@ export default function CajeroView() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {/* Selector Método de Pago */}
                   <div>
-                    <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Método de Pago *</label>
+                    <label htmlFor="payment-method" className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Método de Pago *</label>
                     <select
+                      id="payment-method"
+                      name="payment_method"
                       value={paymentMethod}
                       onChange={(e) => {
                         setPaymentMethod(e.target.value);
                         setPaymentError('');
                         if (e.target.value === 'Efectivo') {
+                          setAmountPaidInput(selectedOrder.total.toString());
+                        } else {
                           setAmountPaidInput(selectedOrder.total.toString());
                         }
                       }}
@@ -376,7 +369,6 @@ export default function CajeroView() {
                       <option value="Efectivo">Efectivo Colones</option>
                       <option value="Tarjeta POS">Tarjeta POS / Datafono</option>
                       <option value="SINPE Movil">SINPE Móvil</option>
-                      <option value="Otro">Otro Método</option>
                     </select>
                   </div>
 
@@ -384,8 +376,10 @@ export default function CajeroView() {
                   {paymentMethod === 'Efectivo' ? (
                     <>
                       <div>
-                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Monto Recibido *</label>
+                        <label htmlFor="amount-paid" className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Monto Recibido *</label>
                         <input
+                          id="amount-paid"
+                          name="amount_paid"
                           type="number"
                           value={amountPaidInput}
                           onChange={(e) => setAmountPaidInput(e.target.value)}
@@ -398,7 +392,7 @@ export default function CajeroView() {
                         <div className={`w-full border rounded-xl px-3 py-2 text-xs font-mono font-extrabold flex items-center justify-between ${
                           calculatedChange >= 0 ? 'bg-[#46593a]/15 text-[#1f2d17] border-[#46593a]/40' : 'bg-rose-100 text-[#802319] border-rose-300'
                         }`}>
-                          <span>₡{calculatedChange.toLocaleString()}</span>
+                          <span>{formatColones(calculatedChange)}</span>
                           <span className="text-[10px]">Vuelto</span>
                         </div>
                       </div>
@@ -406,8 +400,10 @@ export default function CajeroView() {
                   ) : paymentMethod === 'Tarjeta POS' ? (
                     <>
                       <div>
-                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Tipo Tarjeta</label>
+                        <label htmlFor="card-type" className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Tipo Tarjeta</label>
                         <select
+                          id="card-type"
+                          name="card_type"
                           value={cardType}
                           onChange={(e) => setCardType(e.target.value)}
                           className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold"
@@ -419,8 +415,10 @@ export default function CajeroView() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Voucher / Referencia *</label>
+                        <label htmlFor="reference-number" className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Voucher / Referencia *</label>
                         <input
+                          id="reference-number"
+                          name="reference_number"
                           type="text"
                           value={referenceNumber}
                           onChange={(e) => setReferenceNumber(e.target.value)}
@@ -432,8 +430,10 @@ export default function CajeroView() {
                   ) : (
                     <>
                       <div>
-                        <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Comprobante SINPE *</label>
+                        <label htmlFor="sinpe-reference" className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Comprobante SINPE *</label>
                         <input
+                          id="sinpe-reference"
+                          name="sinpe_reference"
                           type="text"
                           value={referenceNumber}
                           onChange={(e) => setReferenceNumber(e.target.value)}
@@ -454,8 +454,10 @@ export default function CajeroView() {
                 {/* Datos de Factura Electrónica */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Cliente Factura</label>
+                    <label htmlFor="invoice-customer-name" className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Cliente Factura</label>
                     <input
+                      id="invoice-customer-name"
+                      name="customer_name"
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
@@ -464,8 +466,10 @@ export default function CajeroView() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Cédula / Correo</label>
+                    <label htmlFor="invoice-customer-contact" className="text-[10px] font-extrabold text-[#1f1209] uppercase block mb-1 font-mono">Cédula / Correo</label>
                     <input
+                      id="invoice-customer-contact"
+                      name="customer_contact"
                       type="text"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
@@ -503,7 +507,7 @@ export default function CajeroView() {
 
       </div>
 
-      {/* Modal para Quitar Producto con Motivo Escrito y PIN */}
+      {/* Confirmación de retiro */}
       {removingItemIndex !== null && selectedOrder && (
         <div className="fixed inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#1f1209] w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
@@ -516,33 +520,7 @@ export default function CajeroView() {
             </p>
 
             <form onSubmit={handleConfirmRemoveItem} className="space-y-3">
-              <div>
-                <label className="text-xs font-extrabold text-[#1f1209] block mb-1 font-mono">
-                  Explicación del Motivo * (Mínimo 8 caracteres)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Ej. El cliente decidió no consumir la entrada..."
-                  value={writtenReason}
-                  onChange={(e) => setWrittenReason(e.target.value)}
-                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-xs text-[#1f1209] font-bold focus:outline-none focus:border-[#5d402b]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-extrabold text-[#1f1209] block mb-1 font-mono">
-                  PIN de Autorización (Requerido si el plato ya fue preparado)
-                </label>
-                <input
-                  type="password"
-                  maxLength={8}
-                  placeholder="PIN Autorización Gerente"
-                  value={managerPin}
-                  onChange={(e) => setManagerPin(e.target.value)}
-                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-center text-xs font-mono font-bold text-[#5d402b]"
-                />
-              </div>
+              <p className="text-sm">¿Estás seguro de que querés quitar este producto de la cuenta?</p>
 
               {removeError && <p className="text-xs text-[#802319] font-bold">{removeError}</p>}
 
@@ -559,7 +537,7 @@ export default function CajeroView() {
                   disabled={isProcessing}
                   className="px-4 py-2 bg-[#802319] hover:bg-[#601912] text-[#fffdf9] font-bold text-xs rounded-xl shadow-md"
                 >
-                  Confirmar Retiro & Recalcular
+                  Sí, quitar producto
                 </button>
               </div>
             </form>

@@ -1,0 +1,101 @@
+- generic [ref=f2e71]:
+  - banner [ref=f2e72]:
+    - generic [ref=f2e73]:
+      - generic [ref=f2e74]:
+        - generic [ref=f2e75]: 🍷
+        - generic [ref=f2e76]:
+          - generic [ref=f2e77]:
+            - heading "La Vid Steak House & Pizza 🥩" [level=1] [ref=f2e78]:
+              - text: La Vid Steak House & Pizza
+              - generic "Steakhouse Premium" [ref=f2e79]: 🥩
+            - generic [ref=f2e80]: La Fortuna, CR
+          - paragraph [ref=f2e81]:
+            - text: La Fortuna, San Carlos, Alajuela, Costa Rica •
+            - generic [ref=f2e82]: GastroFlow OS v4.3
+      - generic [ref=f2e83]:
+        - generic [ref=f2e88]:
+          - paragraph [ref=f2e89]: Laura
+          - paragraph [ref=f2e90]: "Rol: Salonero / Mesero"
+        - generic [ref=f2e91]: EN LÍNEA
+        - generic [ref=f2e97]: 10:14:32 p. m.
+        - button "Cerrar sesión de empleado" [ref=f2e102] [cursor=pointer]
+  - generic [ref=f2e106]:
+    - complementary [ref=f2e107]:
+      - generic [ref=f2e108]:
+        - generic [ref=f2e109]:
+          - generic [ref=f2e110]: Módulos La Vid
+          - button "Contraer Barra Lateral" [ref=f2e111] [cursor=pointer]
+        - button "POS & Mesas" [ref=f2e114] [cursor=pointer]
+        - button "Reservas Nuevo" [ref=f2e121] [cursor=pointer]:
+          - generic [ref=f2e124]: Reservas
+          - generic [ref=f2e125]: Nuevo
+        - button "GastroAI Engine AI" [ref=f2e126] [cursor=pointer]:
+          - generic [ref=f2e129]: GastroAI Engine
+          - generic [ref=f2e130]: AI
+      - generic [ref=f2e132]:
+        - paragraph [ref=f2e133]: La Vid Steak House
+        - paragraph [ref=f2e134]: Salonero / Mesero
+    - main [ref=f2e135]:
+      - button "⚠️ Reportar Incidencia" [ref=f2e137] [cursor=pointer]
+      - generic [ref=f2e139]:
+        - generic [ref=f2e147]:
+          - heading "Vista General de Mesas del Restaurante" [level=2] [ref=f2e148]
+          - paragraph [ref=f2e149]:
+            - text: "Salonero Activo:"
+            - strong [ref=f2e150]: Laura
+            - text: • Tarjetas consolidadas por mesa
+        - generic [ref=f2e151]:
+          - generic [ref=f2e152] [cursor=pointer]:
+            - generic [ref=f2e153]:
+              - generic [ref=f2e154]:
+                - heading "Mesa 1 (4p)" [level=3] [ref=f2e155]:
+                  - text: Mesa 1
+                  - generic [ref=f2e156]: (4p)
+                - generic [ref=f2e157]: Disponible
+              - paragraph [ref=f2e158]: Salón Principal
+            - generic [ref=f2e159]: Abrir Pedido Rápidamente
+          - generic [ref=f2e161] [cursor=pointer]:
+            - generic [ref=f2e162]:
+              - generic [ref=f2e163]:
+                - heading "Mesa 2 (2p)" [level=3] [ref=f2e164]:
+                  - text: Mesa 2
+                  - generic [ref=f2e165]: (2p)
+                - generic [ref=f2e166]: Disponible
+              - paragraph [ref=f2e167]: Salón Principal
+            - generic [ref=f2e168]: Abrir Pedido Rápidamente
+          - generic [ref=f2e170] [cursor=pointer]:
+            - generic [ref=f2e171]:
+              - generic [ref=f2e172]:
+                - heading "Mesa 3 (6p)" [level=3] [ref=f2e173]:
+                  - text: Mesa 3
+                  - generic [ref=f2e174]: (6p)
+                - generic [ref=f2e175]: Disponible
+              - paragraph [ref=f2e176]: Terraza Bar
+            - generic [ref=f2e177]: Abrir Pedido Rápidamente
+          - generic [ref=f2e179] [cursor=pointer]:
+            - generic [ref=f2e180]:
+              - generic [ref=f2e181]:
+                - heading "Mesa 4 (4p)" [level=3] [ref=f2e182]:
+                  - text: Mesa 4
+                  - generic [ref=f2e183]: (4p)
+                - generic [ref=f2e184]: Disponible
+              - paragraph [ref=f2e185]: Terraza Bar
+            - generic [ref=f2e186]: Abrir Pedido Rápidamente
+          - generic [ref=f2e188] [cursor=pointer]:
+            - generic [ref=f2e189]:
+              - generic [ref=f2e190]:
+                - heading "Mesa 5 VIP (8p)" [level=3] [ref=f2e191]:
+                  - text: Mesa 5 VIP
+                  - generic [ref=f2e192]: (8p)
+                - generic [ref=f2e193]: Disponible
+              - paragraph [ref=f2e194]: Cava Privada
+            - generic [ref=f2e195]: Abrir Pedido Rápidamente
+          - generic [ref=f2e197] [cursor=pointer]:
+            - generic [ref=f2e198]:
+              - generic [ref=f2e199]:
+                - heading "Mesa 6 (2p)" [level=3] [ref=f2e200]:
+                  - text: Mesa 6
+                  - generic [ref=f2e201]: (2p)
+                - generic [ref=f2e202]: Disponible
+              - paragraph [ref=f2e203]: Salón Principal
+            - generic [ref=f2e204]: Abrir Pedido Rápidamente

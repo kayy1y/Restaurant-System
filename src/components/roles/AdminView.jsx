@@ -2,12 +2,12 @@ import React from 'react';
 import { 
   ShieldCheck, Utensils, Package, Users, Play, CheckCircle2, 
   AlertTriangle, Lock, Edit3, Plus, Save, Sparkles, FileText, FolderPlus, 
-  Trash2, EyeOff, Check, RotateCcw, Search, Tag, Flame, Code
+  Trash2, EyeOff, Check, RotateCcw, Search, Tag, Flame, Code, X
 } from 'lucide-react';
 
 import { 
   getMenuProducts, saveMenuProduct, getProductRecipe, saveProductRecipe, 
-  createAdminMenuProduct, getMenuCategories, setProductStatus, deleteMenuProduct, saveCategory 
+  createAdminMenuProduct, getMenuCategories, getProductModifiers, setProductStatus, deleteMenuProduct, saveCategory
 } from '../../services/menuService.js';
 import { getInventoryItems, getUnitsOfMeasure } from '../../services/inventoryService.js';
 import { getAllUsers, saveUser, validateAdminPin, toggleUserStatus, deleteUser } from '../../services/authService.js';
@@ -17,6 +17,105 @@ import { runBillingFlowTests } from '../../services/billingFlowTestRunner.js';
 import { runExternalInvoiceIntegrationTests } from '../../services/externalInvoiceIntegrationTestRunner.js';
 import { testSupabaseConnection } from '../../services/supabaseDiagnostic.js';
 import { getIntegrationConfig, saveIntegrationConfig } from '../../services/invoiceIntegrationService.js';
+
+function parseAccompaniments(value = '') {
+  return [...new Set(value
+    .split(/[\n,]/)
+    .map(option => option.trim().replace(/\s+/g, ' '))
+    .filter(Boolean))];
+}
+
+function ProductImageField({ value = '', onChange }) {
+  const [error, setError] = React.useState('');
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  const handleFile = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setError('');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Usa una imagen JPG, PNG o WebP.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('La imagen no puede superar 8 MB.');
+      return;
+    }
+
+    setIsProcessing(true);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setIsProcessing(false);
+      setError('No fue posible leer la imagen.');
+    };
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => {
+        setIsProcessing(false);
+        setError('El archivo seleccionado no es una imagen válida.');
+      };
+      image.onload = () => {
+        const maxSide = 1000;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        onChange(canvas.toDataURL('image/webp', 0.82));
+        setIsProcessing(false);
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="font-bold text-[#231710] block">Imagen de referencia</label>
+      <input
+        type="url"
+        placeholder="https://ejemplo.com/imagen-del-producto.jpg"
+        value={value.startsWith('data:') ? '' : value}
+        onChange={(event) => {
+          setError('');
+          onChange(event.target.value.trim());
+        }}
+        className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-[#231710]"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="cursor-pointer bg-[#f5efe6] text-[#231710] font-bold px-3 py-2 rounded-xl border border-[#dac8b3]">
+          {isProcessing ? 'Procesando imagen…' : 'Seleccionar archivo'}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleFile}
+            disabled={isProcessing}
+            className="sr-only"
+          />
+        </label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-[#802319] font-bold px-3 py-2 rounded-xl border border-rose-300 bg-rose-50"
+          >
+            Quitar imagen
+          </button>
+        )}
+      </div>
+      <p className="text-[10px] text-[#6e5a4b]">Puedes pegar una URL o cargar un archivo JPG, PNG o WebP de hasta 8 MB.</p>
+      {error && <p className="text-[10px] text-[#802319] font-bold">{error}</p>}
+      {value && (
+        <img
+          src={value}
+          alt="Vista previa del producto"
+          className="w-full h-36 object-contain rounded-xl border border-[#dac8b3] bg-[#fffdf9]"
+        />
+      )}
+    </div>
+  );
+}
 
 export default function AdminView() {
   const [activeTab, setActiveTab] = React.useState('menu');
@@ -50,6 +149,7 @@ export default function AdminView() {
     category_id: 'cat-carnes-res',
     description: '',
     description_en: '',
+    image_url: '',
     base_price: '',
     grammage: '',
     spicy_level: 0,
@@ -57,7 +157,8 @@ export default function AdminView() {
     status: 'disponible',
     is_gluten_free: false,
     is_daily_special: false,
-    allows_modifiers: true
+    allows_modifiers: true,
+    accompaniments_text: ''
   });
   const [prodFormError, setProdFormError] = React.useState('');
   const [prodFormSuccess, setProdFormSuccess] = React.useState('');
@@ -164,6 +265,7 @@ export default function AdminView() {
     try {
       const created = await createAdminMenuProduct({
         ...newProdForm,
+        accompaniments: parseAccompaniments(newProdForm.accompaniments_text),
         status: publishStatus
       }, 'ADMINISTRADOR', 'Admin General');
 
@@ -175,6 +277,7 @@ export default function AdminView() {
         category_id: categories[0]?.id || 'cat-carnes-res',
         description: '',
         description_en: '',
+        image_url: '',
         base_price: '',
         grammage: '',
         spicy_level: 0,
@@ -182,7 +285,8 @@ export default function AdminView() {
         status: 'disponible',
         is_gluten_free: false,
         is_daily_special: false,
-        allows_modifiers: true
+        allows_modifiers: true,
+        accompaniments_text: ''
       });
       await loadAdminData();
     } catch (err) {
@@ -215,12 +319,23 @@ export default function AdminView() {
     if (!editingProduct) return;
 
     try {
-      await saveMenuProduct(editingProduct, 'ADMINISTRADOR', 'Admin General');
+      await saveMenuProduct({
+        ...editingProduct,
+        accompaniments: parseAccompaniments(editingProduct.accompaniments_text)
+      }, 'ADMINISTRADOR', 'Admin General');
       setEditingProduct(null);
       await loadAdminData();
     } catch (err) {
       alert('Error guardando producto: ' + err.message);
     }
+  };
+
+  const handleEditProduct = async (product) => {
+    const modifiers = await getProductModifiers(product.id);
+    setEditingProduct({
+      ...product,
+      accompaniments_text: modifiers.map(modifier => modifier.name).join('\n')
+    });
   };
 
   const handleCreateCategory = async (e) => {
@@ -374,10 +489,18 @@ export default function AdminView() {
               return (
                 <div key={p.id} className="glass-card p-4 rounded-2xl border border-[#dac8b3] bg-[#fffdf9] space-y-2 flex flex-col justify-between shadow-sm">
                   <div>
+                    {p.image_url && (
+                      <img
+                        src={p.image_url}
+                        alt={p.name}
+                        className="w-full h-28 object-contain rounded-xl border border-[#dac8b3] bg-[#fffdf9] mb-3"
+                        loading="lazy"
+                      />
+                    )}
                     <div className="flex justify-between items-start">
                       <h4 className="font-heading font-extrabold text-sm text-[#231710] flex items-center gap-1">
                         {p.name}
-                        {p.spicy_level > 0 && <span>🌶️</span>}
+                        {p.spicy_level > 0 && <Flame className="w-3 h-3 text-orange-600 inline" aria-label="Picante" />}
                       </h4>
                       <span className="font-mono font-extrabold text-[#5d402b] text-sm">₡{p.base_price?.toLocaleString()}</span>
                     </div>
@@ -395,7 +518,7 @@ export default function AdminView() {
 
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => setEditingProduct(p)}
+                          onClick={() => handleEditProduct(p)}
                           className="bg-[#f5efe6] hover:bg-[#e2d7c5] text-[#231710] px-2 py-1 rounded-lg font-bold text-[10px] border border-[#dac8b3] flex items-center gap-1"
                         >
                           <Edit3 className="w-3 h-3 text-[#5d402b]" /> Editar
@@ -541,6 +664,23 @@ export default function AdminView() {
               />
             </div>
 
+            <ProductImageField
+              value={newProdForm.image_url}
+              onChange={(imageUrl) => setNewProdForm(current => ({ ...current, image_url: imageUrl }))}
+            />
+
+            <div>
+              <label className="font-bold text-[#231710] block mb-1">Acompañamientos del Producto</label>
+              <textarea
+                rows={4}
+                placeholder={'Una opción por línea, por ejemplo:\nPapas fritas\nEnsalada\nAros de cebolla'}
+                value={newProdForm.accompaniments_text}
+                onChange={(e) => setNewProdForm({ ...newProdForm, accompaniments_text: e.target.value })}
+                className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-[#231710]"
+              />
+              <p className="text-[10px] text-[#6e5a4b] mt-1">Estas opciones aparecerán únicamente al seleccionar este producto. Déjalo vacío para agregarlo directamente al pedido.</p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="font-bold text-[#231710] block mb-1">Nivel de Picante</label>
@@ -550,8 +690,8 @@ export default function AdminView() {
                   className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2 text-[#231710] font-bold"
                 >
                   <option value={0}>No picante</option>
-                  <option value={1}>🌶️ Ligeramente Picante</option>
-                  <option value={2}>🌶️🌶️ Muy Picante</option>
+                  <option value={1}>Ligeramente picante</option>
+                  <option value={2}>Muy picante</option>
                 </select>
               </div>
 
@@ -615,7 +755,7 @@ export default function AdminView() {
                 <div className="pt-2 border-t border-[#dac8b3] flex justify-between items-center text-xs">
                   <span className="bg-[#5d402b]/15 text-[#5d402b] font-bold px-2 py-0.5 rounded-md text-[10px]">Especial Activo</span>
                   <button
-                    onClick={() => setEditingProduct(spec)}
+                    onClick={() => handleEditProduct(spec)}
                     className="bg-[#f5efe6] text-[#231710] px-2.5 py-1 rounded-lg font-bold text-[10px] border border-[#dac8b3]"
                   >
                     Editar Especial
@@ -962,7 +1102,7 @@ export default function AdminView() {
       {/* Modal de Edición Rápida de Producto */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#231710] w-full max-w-lg rounded-3xl p-6 space-y-4 shadow-2xl">
+          <div className="glass-panel border border-[#dac8b3] bg-[#faf6ee] text-[#231710] w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-[#dac8b3] pb-3">
               <h3 className="font-heading font-extrabold text-base text-[#231710]">Editar Platillo: {editingProduct.name}</h3>
               <button onClick={() => setEditingProduct(null)} className="p-1 rounded-lg bg-[#f5efe6] text-[#6e5a4b]">
@@ -1021,6 +1161,23 @@ export default function AdminView() {
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
                   className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2"
                 />
+              </div>
+
+              <ProductImageField
+                value={editingProduct.image_url || ''}
+                onChange={(imageUrl) => setEditingProduct(current => ({ ...current, image_url: imageUrl }))}
+              />
+
+              <div>
+                <label className="font-bold text-[#231710] block mb-1">Acompañamientos del Producto</label>
+                <textarea
+                  rows={4}
+                  placeholder="Una opción por línea"
+                  value={editingProduct.accompaniments_text || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, accompaniments_text: e.target.value })}
+                  className="w-full bg-[#fffdf9] border border-[#dac8b3] rounded-xl px-3 py-2"
+                />
+                <p className="text-[10px] text-[#6e5a4b] mt-1">Si no hay opciones, el producto se agregará sin abrir confirmación.</p>
               </div>
 
               <div className="pt-3 border-t border-[#dac8b3] flex justify-end gap-2">

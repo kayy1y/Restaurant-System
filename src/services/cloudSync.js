@@ -19,9 +19,13 @@ class CloudRealtimeRelay {
   connect() {
     if (typeof window === 'undefined') return;
 
+    const wssUrl = (import.meta.env.VITE_CLOUD_SYNC_WS_URL || '').trim();
+    if (!wssUrl) {
+      this.connected = false;
+      return;
+    }
+
     try {
-      // Usar un relay WebSocket de alta disponibilidad y latencia ultrabaja (<40ms)
-      const wssUrl = 'wss://free.piesocket.com/v3/gastroflow_live_v2025?api_key=VCx2BCc3ibJyOYAiB2ZajStrength';
       this.ws = new WebSocket(wssUrl);
 
       this.ws.onopen = () => {

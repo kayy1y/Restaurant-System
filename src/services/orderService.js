@@ -8,8 +8,8 @@ import { getProductRecipe } from './menuService.js';
 import { recordStockMovement } from './inventoryService.js';
 import { liveSync } from './liveSync.js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
-import { validateAuthorizationPin } from './authService.js';
 import { roundMoney, calculateTaxesAndTotals } from '../utils/money.js';
+import { generateEntityId } from '../utils/id.js';
 
 function buildSupabaseSyncError(context, error) {
   if (!error) return null;
@@ -58,8 +58,8 @@ export async function createOrderWithStockDeduction({
   }
 
   const now = new Date().toISOString();
-  const orderId = `ORD-${Date.now().toString().slice(-6)}`;
-  const comandaId = `CMD-${Date.now().toString().slice(-6)}`;
+  const orderId = generateEntityId('ord');
+  const comandaId = generateEntityId('cmd');
 
   let subtotalRaw = 0;
   const processedItems = [];
@@ -171,6 +171,7 @@ export async function createOrderWithStockDeduction({
         id: orderId,
         mesa_id: tableId,
         nombre_mesa: tableName,
+        salonero_id: waiterId || null,
         nombre_salonero: waiterName,
         comensales: diners,
         estado: 'ENVIADO_A_COCINA',
@@ -271,6 +272,7 @@ export async function getActiveOrdersForWaiters() {
             id: p.id,
             table_id: p.mesa_id,
             table_name: p.nombre_mesa,
+            waiter_id: p.salonero_id,
             waiter_name: p.nombre_salonero,
             diners: p.comensales,
             items: mappedItems,
@@ -311,7 +313,7 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
   }
 
   const now = new Date().toISOString();
-  const comandaId = `CMD-${Date.now().toString().slice(-6)}`;
+  const comandaId = generateEntityId('cmd');
 
   const newProcessedItems = [];
   let addedSubtotal = 0;
@@ -448,35 +450,27 @@ export async function addItemToActiveOrder({ orderId, items = [], waiterName = '
 }
 
 /**
- * Quitar Producto del Pedido con Motivo Escrito
+ * Quitar producto confirmado, conservando auditoría y recálculo
  */
 export async function removeItemFromOrder({
   orderId,
   itemIndex,
-  writtenReason,
+  writtenReason = 'Retiro confirmado por el usuario',
   userName = 'Salonero',
-  managerPin = ''
 }) {
   const order = await dbGet('orders', orderId);
   if (!order) throw new Error('Pedido no encontrado.');
 
-  if (!writtenReason || writtenReason.trim().length < 8) {
-    throw new Error('Debe escribir una explicación válida del motivo (mínimo 8 caracteres).');
-  }
-
-  if (itemIndex < 0 || itemIndex >= order.items.length) {
+  if (!Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= order.items.length) {
     throw new Error('Índice de producto no válido.');
   }
 
   const targetItem = order.items[itemIndex];
+  if (['PAGADO', 'CANCELADO'].includes(String(order.status).toUpperCase())) throw new Error('La cuenta está cerrada.');
+  if (['RETIRADO_DE_CUENTA', 'CANCELADO'].includes(targetItem.status)) return order;
   const now = new Date().toISOString();
 
-  if (targetItem.status === 'ENVIADO_A_COCINA' || targetItem.status === 'EN_PREPARACION' || targetItem.status === 'LISTO' || targetItem.status === 'ENTREGADO' || managerPin) {
-    const auth = await validateAuthorizationPin(managerPin, ['ADMINISTRADOR', 'GERENTE']);
-    if (!auth.valid) {
-      throw new Error(`Retirar un plato ya enviado a cocina requiere PIN de autorización de Gerente o Administrador activo. ${auth.error || ''}`);
-    }
-
+  if (targetItem.status === 'ENVIADO_A_COCINA' || targetItem.status === 'EN_PREPARACION' || targetItem.status === 'LISTO' || targetItem.status === 'ENTREGADO') {
     const recipeData = await getProductRecipe(targetItem.product_id);
     if (recipeData.hasRecipe) {
       for (const ing of recipeData.ingredients) {

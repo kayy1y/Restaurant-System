@@ -1,4 +1,5 @@
 import React from 'react';
+import { processState } from '../../utils/processState.js';
 import { ChefHat, Flame, Clock, CheckCircle2, AlertTriangle, RefreshCw, Volume2, Mic } from 'lucide-react';
 import { getComandasForKitchen, updateComandaStatus } from '../../services/orderService.js';
 import { getInventoryItems, recordStockMovement } from '../../services/inventoryService.js';
@@ -112,17 +113,13 @@ export default function CocinaView() {
           </div>
         ) : (
           comandas.map(cmd => (
-            <div key={cmd.id} className="glass-card rounded-3xl border border-[#dac8b3] bg-[#fffdf9] overflow-hidden flex flex-col justify-between shadow-md">
+            <div key={cmd.id} data-process={processState(cmd.status).tone} className="glass-card rounded-3xl border border-[#dac8b3] bg-[#fffdf9] overflow-hidden flex flex-col justify-between shadow-md">
               <div className="bg-[#2c1d13] text-[#f7f2e9] border-b border-[#422c1d] p-4 flex justify-between items-center">
                 <div>
                   <h3 className="font-extrabold text-base text-[#f7f2e9]">{cmd.table_name}</h3>
                   <p className="text-xs text-[#c4b1a1]">Salonero: {cmd.waiter_name}</p>
                 </div>
-                <span className={`text-xs font-bold font-mono px-2.5 py-1 rounded-lg border ${
-                  cmd.status === 'Nuevo' || cmd.status?.includes('Nuevo') ? 'bg-rose-900/60 text-rose-200 border-rose-600 animate-pulse' :
-                  cmd.status === 'En preparación' ? 'bg-[#c86414]/30 text-[#f7f2e9] border-[#c86414]' :
-                  'bg-[#46593a]/40 text-[#d4e6c8] border-[#46593a]'
-                }`}>
+                <span className="process-badge" data-process={processState(cmd.status).tone}>
                   {cmd.status}
                 </span>
               </div>
@@ -137,7 +134,7 @@ export default function CocinaView() {
                     {/* Indicación Especial Escrita */}
                     {i.notes && (
                       <div className="bg-[#5d402b]/15 border border-[#5d402b]/30 px-2.5 py-1 rounded-lg text-[#5d402b] text-xs font-mono font-extrabold">
-                        ⚠️ INDICACIÓN: {i.notes.toUpperCase()}
+                        INDICACIÓN: {i.notes.toUpperCase()}
                       </div>
                     )}
 
