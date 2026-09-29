@@ -145,17 +145,19 @@ export function mapGastroFlowToSupabasePayload(resData) {
  */
 export async function getAllReservations() {
   let supabaseReservations = [];
-  try {
+  if (supabase) {
     const { data: rows, error } = await supabase
       .from('reservas')
       .select('*')
       .order('fecha_hora_inicio', { ascending: true });
 
-    if (!error && Array.isArray(rows)) {
+    if (error) {
+      throw new Error(`No fue posible leer reservas de Supabase: ${error.message}`);
+    }
+
+    if (Array.isArray(rows)) {
       supabaseReservations = rows.map(mapSupabaseToGastroFlow);
     }
-  } catch (err) {
-    console.warn('Excepción al consultar Supabase reservas:', err.message);
   }
 
   let localReservations = [];
