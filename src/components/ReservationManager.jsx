@@ -11,6 +11,7 @@ import {
   subscribeToReservations, getCostaRicaDateString, updateReservationTable
 } from '../services/reservationService.js';
 import { liveSync } from '../services/liveSync.js';
+import { isSupabaseConfigured } from '../lib/supabase.js';
 
 export default function ReservationManager({ tables, currentRole, onSeatCustomer }) {
   const [activeTab, setActiveTab] = React.useState('hoy'); // hoy, proximas, calendario, historial
@@ -285,6 +286,17 @@ export default function ReservationManager({ tables, currentRole, onSeatCustomer
           />
         </div>
       </div>
+
+      {!isSupabaseConfigured && (
+        <div role="status" className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-xs text-amber-950">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            <strong>Supabase no está configurado.</strong> Esta pantalla solo puede mostrar reservas locales. Configura
+            {' '}<code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> (o <code>VITE_SUPABASE_ANON_KEY</code>)
+            {' '}en <code>.env.local</code> y reinicia Vite.
+          </p>
+        </div>
+      )}
 
       {/* VISTA 1, 2 Y 4: LISTA DE RESERVAS */}
       {activeTab !== 'calendario' && (
